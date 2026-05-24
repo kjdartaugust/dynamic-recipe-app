@@ -1,0 +1,13 @@
+{
+  "/_global-error/page": "app/_global-error/page.js",
+  "/_not-found/page": "app/_not-found/page.js",
+  "/api/ai/modify/route": "app/api/ai/modify/route.js",
+  "/api/ai/scan/route": "app/api/ai/scan/route.js",
+  "/dashboard/page": "app/dashboard/page.js",
+  "/favicon.ico/route": "app/favicon.ico/route.js",
+  "/login/page": "app/login/page.js",
+  "/page": "app/page.js",
+  "/recipes/[id]/page": "app/recipes/[id]/page.js",
+  "/recipes/create/page": "app/recipes/create/page.js",
+  "/register/page": "app/register/page.js"
+}

@@ -1,0 +1,13 @@
+{
+  "/_global-error/page": "/_global-error",
+  "/_not-found/page": "/_not-found",
+  "/api/ai/modify/route": "/api/ai/modify",
+  "/api/ai/scan/route": "/api/ai/scan",
+  "/dashboard/page": "/dashboard",
+  "/favicon.ico/route": "/favicon.ico",
+  "/login/page": "/login",
+  "/page": "/",
+  "/recipes/[id]/page": "/recipes/[id]",
+  "/recipes/create/page": "/recipes/create",
+  "/register/page": "/register"
+}

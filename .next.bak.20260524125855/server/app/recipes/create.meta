@@ -1,0 +1,16 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/recipes/layout,_N_T_/recipes/create/layout,_N_T_/recipes/create/page,_N_T_/recipes/create"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/recipes/create/__PAGE__",
+    "/recipes/create",
+    "/recipes",
+    "/_index",
+    "/_head"
+  ]
+}

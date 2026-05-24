@@ -1,0 +1,3 @@
+module.exports=[86682,a=>{"use strict";a.s(["default",0,function({children:a}){return a},"metadata",0,{title:"Create Recipe",description:"Create a new recipe with AI assistance. Add ingredients, instructions, and let AI help you modify and enhance your recipes.",openGraph:{title:"Create Recipe | Dynamic Recipe App",description:"Create a new recipe with AI assistance. Add ingredients, instructions, and let AI help you modify and enhance your recipes."}}])},69043,a=>{a.n(a.i(86682))}];
+
+//# sourceMappingURL=src_app_recipes_create_layout_tsx_0jfv4al._.js.map
