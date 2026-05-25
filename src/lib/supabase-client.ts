@@ -7,10 +7,23 @@ export function createClient() {
     {
       cookies: {
         getAll() {
-          return document.cookie.split("; ").map((cookie) => {
-            const [name, value] = cookie.split("=");
-            return { name, value: decodeURIComponent(value) };
-          });
+          if (typeof document === "undefined") return [];
+          const raw = document.cookie;
+          if (!raw) return [];
+          return raw
+            .split("; ")
+            .filter(Boolean)
+            .map((cookie) => {
+              const eqIdx = cookie.indexOf("=");
+              if (eqIdx === -1) return { name: cookie, value: "" };
+              const name = cookie.slice(0, eqIdx);
+              const value = cookie.slice(eqIdx + 1);
+              try {
+                return { name, value: decodeURIComponent(value) };
+              } catch {
+                return { name, value };
+              }
+            });
         },
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value, options }) => {

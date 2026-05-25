@@ -7,7 +7,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { createClient } from "@/lib/supabase-client";
 import { IngredientScanner } from "@/components/ingredient-scanner";
 import { ImageUpload } from "@/components/image-upload";
-import { ArrowLeft, Plus, Trash2, ChefHat, Clock, Users } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, ChefHat, Clock, Users, Loader2 } from "lucide-react";
 
 const supabase = createClient();
 
@@ -24,18 +24,18 @@ interface Category {
 
 export default function CreateRecipePage() {
   const router = useRouter();
-  const { user } = useAuth();
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { user, isLoading: authLoading } = useAuth();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [instructions, setInstructions] = useState("");
   const [imageUrl, setImageUrl] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [categoryId, setCategoryId] = useState("");
+  const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
   const [prepTime, setPrepTime] = useState("");
   const [cookTime, setCookTime] = useState("");
   const [servings, setServings] = useState("");
   const [difficulty, setDifficulty] = useState("");
-  const [categories, setCategories] = useState<Category[]>([]);
   const [ingredients, setIngredients] = useState<IngredientInput[]>([
     { name: "", amount: "", unit: "" },
   ]);
@@ -51,12 +51,12 @@ export default function CreateRecipePage() {
     loadCategories();
   }, []);
 
-  // Redirect if not authenticated
+  // Redirect if not authenticated (wait for auth to finish loading)
   useEffect(() => {
-    if (!user) {
+    if (!authLoading && !user) {
       router.push("/login");
     }
-  }, [user, router]);
+  }, [authLoading, user, router]);
 
   const addIngredient = () => {
     setIngredients([...ingredients, { name: "", amount: "", unit: "" }]);
@@ -142,6 +142,14 @@ export default function CreateRecipePage() {
       setIsSubmitting(false);
     }
   };
+
+  if (authLoading) {
+    return (
+      <div className="max-w-3xl mx-auto flex items-center justify-center py-24">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-3xl mx-auto space-y-8">
