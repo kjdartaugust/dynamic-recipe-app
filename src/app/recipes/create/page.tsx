@@ -51,9 +51,13 @@ export default function CreateRecipePage() {
     loadCategories();
   }, []);
 
+  console.log("[CREATE] render authLoading=", authLoading, "user=", user ? user.email : "null");
+
   // Redirect if not authenticated (wait for auth to finish loading)
   useEffect(() => {
+    console.log("[CREATE] redirect check authLoading=", authLoading, "user=", user ? user.email : "null");
     if (!authLoading && !user) {
+      console.log("[CREATE] redirecting to /login");
       router.push("/login");
     }
   }, [authLoading, user, router]);
