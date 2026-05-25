@@ -58,13 +58,6 @@ export default function CreateRecipePage() {
     }
   }, [user, router]);
 
-  // Redirect if not authenticated
-  useEffect(() => {
-    if (!user) {
-      router.push("/login");
-    }
-  }, [user, router]);
-
   const addIngredient = () => {
     setIngredients([...ingredients, { name: "", amount: "", unit: "" }]);
   };
