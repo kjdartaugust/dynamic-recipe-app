@@ -14,7 +14,7 @@ export async function proxy(request: NextRequest) {
         getAll() {
           return request.cookies.getAll();
         },
-        setAll(cookiesToSet) {
+        setAll(cookiesToSet, headers) {
           cookiesToSet.forEach(({ name, value }) =>
             request.cookies.set(name, value)
           );
@@ -24,6 +24,12 @@ export async function proxy(request: NextRequest) {
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options)
           );
+          // Set cache-control headers to prevent CDN caching auth responses
+          if (headers) {
+            Object.entries(headers).forEach(([key, value]) =>
+              supabaseResponse.headers.set(key, value)
+            );
+          }
         },
       },
     }
