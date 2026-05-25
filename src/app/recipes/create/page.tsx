@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useAuth } from "@/contexts/auth-context";
 import { createClient } from "@/lib/supabase-client";
 import { IngredientScanner } from "@/components/ingredient-scanner";
 import { ImageUpload } from "@/components/image-upload";
@@ -23,6 +24,7 @@ interface Category {
 
 export default function CreateRecipePage() {
   const router = useRouter();
+  const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -48,6 +50,20 @@ export default function CreateRecipePage() {
     }
     loadCategories();
   }, []);
+
+  // Redirect if not authenticated
+  useEffect(() => {
+    if (!user) {
+      router.push("/login");
+    }
+  }, [user, router]);
+
+  // Redirect if not authenticated
+  useEffect(() => {
+    if (!user) {
+      router.push("/login");
+    }
+  }, [user, router]);
 
   const addIngredient = () => {
     setIngredients([...ingredients, { name: "", amount: "", unit: "" }]);
@@ -81,10 +97,7 @@ export default function CreateRecipePage() {
     setIsSubmitting(true);
 
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
+      // Use the user from auth context instead of calling getUser again
       if (!user) {
         alert("Please sign in to create a recipe");
         return;
