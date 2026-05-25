@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase-server";
 import type { RecipeWithIngredients } from "@/lib/types";
-import { Clock, Users, ChefHat } from "lucide-react";
+import { Clock, Users, ChefHat, Search, SlidersHorizontal } from "lucide-react";
+import { RecipeSearch } from "@/components/recipe-search";
 
 export const metadata = {
   title: "Dashboard",
@@ -16,7 +17,8 @@ async function getRecipes(): Promise<RecipeWithIngredients[]> {
     .select(`
       *,
       ingredients (*),
-      profiles (username, avatar_url)
+      profiles (username, avatar_url),
+      categories (name)
     `)
     .order("created_at", { ascending: false });
 
@@ -28,8 +30,18 @@ async function getRecipes(): Promise<RecipeWithIngredients[]> {
   return recipes || [];
 }
 
+async function getCategories() {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("categories")
+    .select("id, name, slug")
+    .order("name");
+  return data || [];
+}
+
 export default async function DashboardPage() {
   const recipes = await getRecipes();
+  const categories = await getCategories();
 
   return (
     <div className="space-y-8">
@@ -48,6 +60,8 @@ export default async function DashboardPage() {
           Create Recipe
         </Link>
       </div>
+
+      <RecipeSearch categories={categories} />
 
       {recipes.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
@@ -77,6 +91,7 @@ export default async function DashboardPage() {
 function RecipeCard({ recipe }: { recipe: RecipeWithIngredients }) {
   const ingredientCount = recipe.ingredients?.length || 0;
   const calories = recipe.macros?.calories;
+  const totalTime = (recipe.prep_time || 0) + (recipe.cook_time || 0);
 
   return (
     <Link href={`/recipes/${recipe.id}`} className="group">
@@ -91,6 +106,13 @@ function RecipeCard({ recipe }: { recipe: RecipeWithIngredients }) {
           ) : (
             <div className="flex items-center justify-center h-full">
               <ChefHat className="h-12 w-12 text-muted-foreground" />
+            </div>
+          )}
+          {recipe.categories && (
+            <div className="absolute top-2 left-2">
+              <span className="px-2 py-1 text-xs font-medium bg-black/50 text-white rounded-full">
+                {recipe.categories.name}
+              </span>
             </div>
           )}
         </div>
@@ -108,9 +130,14 @@ function RecipeCard({ recipe }: { recipe: RecipeWithIngredients }) {
               <Users className="h-4 w-4" />
               {ingredientCount} ingredients
             </span>
-            {calories && (
+            {totalTime > 0 && (
               <span className="flex items-center gap-1">
                 <Clock className="h-4 w-4" />
+                {totalTime} min
+              </span>
+            )}
+            {calories && (
+              <span className="flex items-center gap-1">
                 {calories} cal
               </span>
             )}

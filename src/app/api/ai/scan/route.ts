@@ -1,10 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createRateLimiter } from "@/lib/rate-limit";
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || "";
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 const MODEL = "google/gemini-2.0-flash-001";
 
+// Rate limit: 5 requests per minute per IP
+const rateLimiter = createRateLimiter(5, 60 * 1000);
+
 export async function POST(request: NextRequest) {
+  // Check rate limit
+  const rateLimitResponse = rateLimiter(request);
+  if (rateLimitResponse) {
+    return rateLimitResponse;
+  }
+
+  try {
+    if (!OPENROUTER_API_KEY) {
+      return NextResponse.json(
+        { error: "OpenRouter API key is not configured" },
+        { status: 500 }
+      );
+    }
+
   try {
     if (!OPENROUTER_API_KEY) {
       return NextResponse.json(

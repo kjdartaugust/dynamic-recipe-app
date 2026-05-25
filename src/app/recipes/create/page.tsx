@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase-client";
 import { IngredientScanner } from "@/components/ingredient-scanner";
-import { ArrowLeft, Plus, Trash2, ChefHat } from "lucide-react";
+import { ImageUpload } from "@/components/image-upload";
+import { ArrowLeft, Plus, Trash2, ChefHat, Clock, Users } from "lucide-react";
 
 const supabase = createClient();
 
@@ -15,15 +16,38 @@ interface IngredientInput {
   unit: string;
 }
 
+interface Category {
+  id: string;
+  name: string;
+}
+
 export default function CreateRecipePage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [instructions, setInstructions] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+  const [categoryId, setCategoryId] = useState("");
+  const [prepTime, setPrepTime] = useState("");
+  const [cookTime, setCookTime] = useState("");
+  const [servings, setServings] = useState("");
+  const [difficulty, setDifficulty] = useState("");
+  const [categories, setCategories] = useState<Category[]>([]);
   const [ingredients, setIngredients] = useState<IngredientInput[]>([
     { name: "", amount: "", unit: "" },
   ]);
+
+  useEffect(() => {
+    async function loadCategories() {
+      const { data } = await supabase
+        .from("categories")
+        .select("id, name")
+        .order("name");
+      if (data) setCategories(data);
+    }
+    loadCategories();
+  }, []);
 
   const addIngredient = () => {
     setIngredients([...ingredients, { name: "", amount: "", unit: "" }]);
@@ -57,7 +81,6 @@ export default function CreateRecipePage() {
     setIsSubmitting(true);
 
     try {
-      // Get current user
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -67,7 +90,6 @@ export default function CreateRecipePage() {
         return;
       }
 
-      // Create recipe
       const { data: recipe, error: recipeError } = await supabase
         .from("recipes")
         .insert({
@@ -75,13 +97,18 @@ export default function CreateRecipePage() {
           title,
           description: description || null,
           instructions,
+          image_url: imageUrl || null,
+          category_id: categoryId || null,
+          prep_time: prepTime ? parseInt(prepTime) : null,
+          cook_time: cookTime ? parseInt(cookTime) : null,
+          servings: servings ? parseInt(servings) : null,
+          difficulty: difficulty || null,
         })
         .select()
         .single();
 
       if (recipeError) throw recipeError;
 
-      // Create ingredients
       const validIngredients = ingredients.filter(
         (ing) => ing.name && ing.amount && ing.unit
       );
@@ -112,7 +139,6 @@ export default function CreateRecipePage() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-8">
-      {/* Header */}
       <div className="flex items-center gap-4">
         <Link
           href="/dashboard"
@@ -125,6 +151,12 @@ export default function CreateRecipePage() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-8">
+        {/* Image Upload */}
+        <div className="space-y-4">
+          <h2 className="text-xl font-semibold">Recipe Photo</h2>
+          <ImageUpload onImageUploaded={setImageUrl} />
+        </div>
+
         {/* Basic Info */}
         <div className="space-y-4">
           <h2 className="text-xl font-semibold">Basic Information</h2>
@@ -156,6 +188,91 @@ export default function CreateRecipePage() {
               rows={3}
               className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
             />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label htmlFor="category" className="text-sm font-medium">
+                Category
+              </label>
+              <select
+                id="category"
+                value={categoryId}
+                onChange={(e) => setCategoryId(e.target.value)}
+                className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                <option value="">Select category</option>
+                {categories.map((cat) => (
+                  <option key={cat.id} value={cat.id}>
+                    {cat.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-2">
+              <label htmlFor="difficulty" className="text-sm font-medium">
+                Difficulty
+              </label>
+              <select
+                id="difficulty"
+                value={difficulty}
+                onChange={(e) => setDifficulty(e.target.value)}
+                className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                <option value="">Select difficulty</option>
+                <option value="easy">Easy</option>
+                <option value="medium">Medium</option>
+                <option value="hard">Hard</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <label htmlFor="prepTime" className="text-sm font-medium flex items-center gap-1">
+                <Clock className="h-3 w-3" /> Prep Time (min)
+              </label>
+              <input
+                id="prepTime"
+                type="number"
+                min="0"
+                value={prepTime}
+                onChange={(e) => setPrepTime(e.target.value)}
+                placeholder="15"
+                className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label htmlFor="cookTime" className="text-sm font-medium flex items-center gap-1">
+                <Clock className="h-3 w-3" /> Cook Time (min)
+              </label>
+              <input
+                id="cookTime"
+                type="number"
+                min="0"
+                value={cookTime}
+                onChange={(e) => setCookTime(e.target.value)}
+                placeholder="30"
+                className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label htmlFor="servings" className="text-sm font-medium flex items-center gap-1">
+                <Users className="h-3 w-3" /> Servings
+              </label>
+              <input
+                id="servings"
+                type="number"
+                min="1"
+                value={servings}
+                onChange={(e) => setServings(e.target.value)}
+                placeholder="4"
+                className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
           </div>
         </div>
 

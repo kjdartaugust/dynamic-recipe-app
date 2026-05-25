@@ -6,6 +6,14 @@ export interface Profile {
   updated_at: string
 }
 
+export interface Category {
+  id: string
+  name: string
+  slug: string
+  description: string | null
+  created_at: string
+}
+
 export interface Recipe {
   id: string
   user_id: string
@@ -19,6 +27,11 @@ export interface Recipe {
     fat?: number
   } | null
   image_url: string | null
+  category_id: string | null
+  prep_time: number | null
+  cook_time: number | null
+  servings: number | null
+  difficulty: string | null
   created_at: string
   updated_at: string
 }
@@ -36,4 +49,5 @@ export interface Ingredient {
 export interface RecipeWithIngredients extends Recipe {
   ingredients: Ingredient[]
   profiles: Profile | null
+  categories: Category | null
 }
