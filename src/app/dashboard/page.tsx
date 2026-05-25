@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase-server";
 import type { RecipeWithIngredients } from "@/lib/types";
-import { Clock, Users, ChefHat } from "lucide-react";
+import { Clock, Users, ChefHat, AlertTriangle } from "lucide-react";
 import { RecipeSearch } from "@/components/recipe-search";
 
 export const metadata = {
@@ -10,7 +10,7 @@ export const metadata = {
   description: "Your personal recipe collection",
 };
 
-async function getMyRecipes(userId: string): Promise<RecipeWithIngredients[]> {
+async function getMyRecipesFull(userId: string): Promise<{ recipes: RecipeWithIngredients[]; error: string | null }> {
   const supabase = await createClient();
   const { data: recipes, error } = await supabase
     .from("recipes")
@@ -24,11 +24,25 @@ async function getMyRecipes(userId: string): Promise<RecipeWithIngredients[]> {
     .order("created_at", { ascending: false });
 
   if (error) {
-    console.error("Error fetching recipes:", error);
-    return [];
+    return { recipes: [], error: `Full query failed: ${error.message}` };
   }
 
-  return recipes || [];
+  return { recipes: recipes || [], error: null };
+}
+
+async function getMyRecipesSimple(userId: string): Promise<{ recipes: any[]; error: string | null }> {
+  const supabase = await createClient();
+  const { data: recipes, error } = await supabase
+    .from("recipes")
+    .select("*")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    return { recipes: [], error: `Simple query failed: ${error.message}` };
+  }
+
+  return { recipes: recipes || [], error: null };
 }
 
 async function getCategories() {
@@ -48,11 +62,51 @@ export default async function DashboardPage() {
     redirect("/login");
   }
 
-  const recipes = await getMyRecipes(session.user.id);
+  const userId = session.user.id;
+
+  // Try full query first
+  const fullResult = await getMyRecipesFull(userId);
+  
+  // Fallback to simple query if full returns empty (might be join issue)
+  let simpleResult: { recipes: any[]; error: string | null } = { recipes: [], error: null };
+  if (fullResult.recipes.length === 0 && !fullResult.error) {
+    simpleResult = await getMyRecipesSimple(userId);
+  }
+
+  const recipes = fullResult.recipes.length > 0 ? fullResult.recipes : simpleResult.recipes;
+  const hasError = fullResult.error || simpleResult.error;
+  const displayError = fullResult.error || simpleResult.error || null;
+
   const categories = await getCategories();
 
   return (
     <div className="space-y-8">
+      {/* DEBUG BANNER - Temporary diagnostic tool */}
+      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 space-y-2">
+        <div className="flex items-center gap-2 text-yellow-800 font-semibold">
+          <AlertTriangle className="h-4 w-4" />
+          Debug Info (Temporary)
+        </div>
+        <div className="text-sm text-yellow-700 space-y-1">
+          <p><strong>User ID:</strong> {userId}</p>
+          <p><strong>Full Query:</strong> {fullResult.recipes.length} recipes {fullResult.error && `(Error: ${fullResult.error})`}</p>
+          <p><strong>Simple Query:</strong> {simpleResult.recipes.length} recipes {simpleResult.error && `(Error: ${simpleResult.error})`}</p>
+          <p><strong>Recipes Displayed:</strong> {recipes.length}</p>
+          <p><strong>Categories:</strong> {categories.length}</p>
+        </div>
+      </div>
+
+      {/* Error Alert */}
+      {displayError && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="flex items-center gap-2 text-red-800 font-semibold">
+            <AlertTriangle className="h-4 w-4" />
+            Query Error
+          </div>
+          <p className="text-sm text-red-700 mt-1">{displayError}</p>
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">My Recipes</h1>

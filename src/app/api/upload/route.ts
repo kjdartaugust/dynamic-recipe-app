@@ -1,40 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
+import { createClient } from "@/lib/supabase-server";
 
 export async function POST(request: NextRequest) {
   try {
-    const cookieStore = await cookies();
-    
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll();
-          },
-          setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            );
-          },
-        },
-      }
-    );
+    const supabase = await createClient();
 
-    // Verify user is authenticated
+    // Verify user is authenticated using session (reads cookies, no network call)
     const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+      data: { session },
+      error: sessionError,
+    } = await supabase.auth.getSession();
 
-    if (authError || !user) {
+    if (sessionError || !session?.user) {
       return NextResponse.json(
-        { error: "Unauthorized" },
+        { error: "Unauthorized. Please sign in to upload images." },
         { status: 401 }
       );
     }
+
+    const user = session.user;
 
     const formData = await request.formData();
     const file = formData.get("image") as File;
@@ -49,7 +33,7 @@ export async function POST(request: NextRequest) {
     // Validate file type
     if (!file.type.startsWith("image/")) {
       return NextResponse.json(
-        { error: "File must be an image" },
+        { error: "File must be an image (PNG, JPG, WEBP)" },
         { status: 400 }
       );
     }
@@ -62,8 +46,30 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Ensure bucket exists
+    const { data: buckets } = await supabase.storage.listBuckets();
+    const bucketExists = buckets?.some((b) => b.name === "recipe-images");
+
+    if (!bucketExists) {
+      const { error: createBucketError } = await supabase.storage.createBucket(
+        "recipe-images",
+        {
+          public: true,
+          fileSizeLimit: 5 * 1024 * 1024, // 5MB
+        }
+      );
+
+      if (createBucketError) {
+        console.error("Failed to create bucket:", createBucketError);
+        return NextResponse.json(
+          { error: "Storage bucket not available", details: createBucketError.message },
+          { status: 500 }
+        );
+      }
+    }
+
     // Generate unique filename
-    const fileExt = file.name.split(".").pop();
+    const fileExt = file.name.split(".").pop() || "jpg";
     const fileName = `${user.id}/${Date.now()}.${fileExt}`;
 
     // Upload to Supabase Storage
@@ -72,6 +78,7 @@ export async function POST(request: NextRequest) {
       .upload(fileName, file, {
         cacheControl: "3600",
         upsert: false,
+        contentType: file.type,
       });
 
     if (uploadError) {
