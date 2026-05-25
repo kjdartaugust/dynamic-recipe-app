@@ -1,16 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase-server";
 
 export async function POST(request: NextRequest) {
   try {
     const apiKey = process.env.GEMINI_API_KEY;
+    
+    // Diagnostic: check if key exists (don't log the full key)
     if (!apiKey) {
-      console.error("GEMINI_API_KEY is not set");
+      console.error("[CHAT] GEMINI_API_KEY is missing");
       return NextResponse.json(
-        { error: "AI service not configured. Please set GEMINI_API_KEY in environment variables." },
+        { error: "Server config error: GEMINI_API_KEY not set" },
         { status: 503 }
       );
     }
+    
+    console.log("[CHAT] API key present, length:", apiKey.length);
 
     const body = await request.json();
     const { messages, recipeContext } = body;
@@ -37,6 +40,8 @@ Guidelines:
 
 ${recipeContext ? `Current recipe context:\n${recipeContext}` : ""}`;
 
+    console.log("[CHAT] Calling OpenRouter with", messages.length, "messages");
+
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -56,11 +61,13 @@ ${recipeContext ? `Current recipe context:\n${recipeContext}` : ""}`;
       }),
     });
 
+    console.log("[CHAT] OpenRouter response status:", response.status);
+
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("OpenRouter error:", response.status, errorText);
+      console.error("[CHAT] OpenRouter error:", response.status, errorText);
       return NextResponse.json(
-        { error: `AI service error (${response.status}). Please try again.` },
+        { error: `AI service error: ${response.status} - ${errorText.slice(0, 200)}` },
         { status: 503 }
       );
     }
@@ -69,14 +76,16 @@ ${recipeContext ? `Current recipe context:\n${recipeContext}` : ""}`;
     const reply = data.choices?.[0]?.message?.content;
 
     if (!reply) {
-      return NextResponse.json({ error: "No response from AI" }, { status: 500 });
+      console.error("[CHAT] No reply in response:", JSON.stringify(data).slice(0, 500));
+      return NextResponse.json({ error: "No response content from AI" }, { status: 500 });
     }
 
+    console.log("[CHAT] Success, reply length:", reply.length);
     return NextResponse.json({ reply });
   } catch (error) {
-    console.error("Chat API error:", error);
+    console.error("[CHAT] Unexpected error:", error);
     return NextResponse.json(
-      { error: "Failed to process chat message" },
+      { error: `Server error: ${error instanceof Error ? error.message : "Unknown"}` },
       { status: 500 }
     );
   }

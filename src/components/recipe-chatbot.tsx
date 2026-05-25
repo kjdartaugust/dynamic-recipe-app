@@ -55,16 +55,19 @@ export function RecipeChatbot({ recipeContext }: RecipeChatbotProps) {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "Failed to get response");
+        // Show the actual server error message
+        throw new Error(data.error || `Server error: ${response.status}`);
       }
 
       setMessages((prev) => [...prev, { role: "assistant", content: data.reply }]);
     } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : "Unknown error";
+      console.error("Chat error:", errorMsg);
       setMessages((prev) => [
         ...prev,
         {
           role: "assistant",
-          content: "Sorry, I'm having trouble connecting right now. Please try again in a moment!",
+          content: `⚠️ Error: ${errorMsg}`,
         },
       ]);
     } finally {
@@ -121,6 +124,8 @@ export function RecipeChatbot({ recipeContext }: RecipeChatbotProps) {
                   className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
                     message.role === "user"
                       ? "bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-br-md"
+                      : message.content.startsWith("⚠️")
+                      ? "bg-red-50 text-red-700 rounded-bl-md border border-red-200"
                       : "bg-orange-50 text-foreground rounded-bl-md border border-orange-100"
                   }`}
                 >
