@@ -8,7 +8,7 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, username: string) => Promise<void>;
+  signUp: (email: string, password: string, username: string) => Promise<{ needsEmailConfirmation: boolean }>;
   signOut: () => Promise<void>;
 }
 
@@ -47,7 +47,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signUp = async (email: string, password: string, username: string) => {
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -56,7 +56,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         },
       },
     });
+    
     if (error) throw error;
+    
+    // Check if email confirmation is required
+    // If user is null after signup, email confirmation is needed
+    const needsEmailConfirmation = !data.user || data.user.identities?.length === 0;
+    
+    return { needsEmailConfirmation };
   };
 
   const signOut = async () => {

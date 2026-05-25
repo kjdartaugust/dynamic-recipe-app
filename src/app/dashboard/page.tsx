@@ -1,16 +1,16 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase-server";
 import type { RecipeWithIngredients } from "@/lib/types";
-import { Clock, Users, ChefHat, Search, SlidersHorizontal } from "lucide-react";
+import { Clock, Users, ChefHat } from "lucide-react";
 import { RecipeSearch } from "@/components/recipe-search";
 
 export const metadata = {
   title: "Dashboard",
-  description:
-    "Browse and discover recipes. View your collection of AI-generated and custom recipes.",
+  description: "Your personal recipe collection",
 };
 
-async function getRecipes(): Promise<RecipeWithIngredients[]> {
+async function getMyRecipes(userId: string): Promise<RecipeWithIngredients[]> {
   const supabase = await createClient();
   const { data: recipes, error } = await supabase
     .from("recipes")
@@ -20,6 +20,7 @@ async function getRecipes(): Promise<RecipeWithIngredients[]> {
       profiles (username, avatar_url),
       categories (name)
     `)
+    .eq("user_id", userId)
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -40,16 +41,25 @@ async function getCategories() {
 }
 
 export default async function DashboardPage() {
-  const recipes = await getRecipes();
+  const supabase = await createClient();
+  
+  // Get current user
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) {
+    redirect("/login");
+  }
+
+  const recipes = await getMyRecipes(user.id);
   const categories = await getCategories();
 
   return (
     <div className="space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+          <h1 className="text-3xl font-bold tracking-tight">My Recipes</h1>
           <p className="text-muted-foreground mt-1">
-            Discover and manage your recipes
+            Your personal recipe collection
           </p>
         </div>
         <Link
@@ -142,16 +152,6 @@ function RecipeCard({ recipe }: { recipe: RecipeWithIngredients }) {
               </span>
             )}
           </div>
-          {recipe.profiles && (
-            <div className="flex items-center gap-2 pt-2 border-t border-border">
-              <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium">
-                {recipe.profiles.username?.charAt(0).toUpperCase() || "U"}
-              </div>
-              <span className="text-sm text-muted-foreground">
-                {recipe.profiles.username}
-              </span>
-            </div>
-          )}
         </div>
       </article>
     </Link>

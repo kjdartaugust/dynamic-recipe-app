@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
-import { UserPlus, Mail, Lock, User, Loader2 } from "lucide-react";
+import { UserPlus, Mail, Lock, User, Loader2, CheckCircle } from "lucide-react";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -15,6 +15,7 @@ export default function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showConfirmation, setShowConfirmation] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,15 +35,46 @@ export default function RegisterPage() {
     }
 
     try {
-      await signUp(email, password, username);
-      router.push("/dashboard");
-      router.refresh();
+      const { needsEmailConfirmation } = await signUp(email, password, username);
+      
+      if (needsEmailConfirmation) {
+        setShowConfirmation(true);
+      } else {
+        // Auto-logged in, redirect to dashboard
+        router.push("/dashboard");
+        router.refresh();
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to sign up");
     } finally {
       setIsLoading(false);
     }
   };
+
+  if (showConfirmation) {
+    return (
+      <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center">
+        <div className="w-full max-w-md space-y-8 p-8 text-center">
+          <div className="inline-flex items-center justify-center p-3 bg-green-100 rounded-full">
+            <CheckCircle className="h-8 w-8 text-green-600" />
+          </div>
+          <h1 className="text-2xl font-bold">Check your email!</h1>
+          <p className="text-muted-foreground">
+            We&apos;ve sent a confirmation link to <strong>{email}</strong>. 
+            Click the link to activate your account.
+          </p>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              After confirming, you can{" "}
+              <Link href="/login" className="text-primary hover:underline font-medium">
+                sign in here
+              </Link>
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center">
