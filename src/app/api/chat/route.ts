@@ -3,8 +3,14 @@ import { createClient } from "@/lib/supabase-server";
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      console.error("GEMINI_API_KEY is not set");
+      return NextResponse.json(
+        { error: "AI service not configured. Please set GEMINI_API_KEY in environment variables." },
+        { status: 503 }
+      );
+    }
 
     const body = await request.json();
     const { messages, recipeContext } = body;
@@ -34,7 +40,7 @@ ${recipeContext ? `Current recipe context:\n${recipeContext}` : ""}`;
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${process.env.GEMINI_API_KEY}`,
+        "Authorization": `Bearer ${apiKey}`,
         "Content-Type": "application/json",
         "HTTP-Referer": "https://dynamic-recipe-app.vercel.app",
         "X-Title": "Dynamic Recipe App",
@@ -51,10 +57,10 @@ ${recipeContext ? `Current recipe context:\n${recipeContext}` : ""}`;
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      console.error("OpenRouter error:", errorData);
+      const errorText = await response.text();
+      console.error("OpenRouter error:", response.status, errorText);
       return NextResponse.json(
-        { error: "AI service temporarily unavailable. Please try again." },
+        { error: `AI service error (${response.status}). Please try again.` },
         { status: 503 }
       );
     }
