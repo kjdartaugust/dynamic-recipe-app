@@ -1,0 +1,16 @@
+{
+  "name": "Dynamic Recipe App",
+  "short_name": "RecipeApp",
+  "description": "AI-powered recipe management. Scan ingredients, modify recipes, and cook hands-free with voice control.",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#000000",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64",
+      "type": "image/x-icon"
+    }
+  ]
+}
