@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 
-// Favorites API - handles add/remove/check favorite status
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
@@ -56,8 +55,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Recipe ID required" }, { status: 400 });
     }
 
-    // Validate: user can only favorite their own recipes or any recipe (your choice)
-    // For now: any authenticated user can favorite any recipe
     const { error } = await supabase
       .from("favorites")
       .insert({ user_id: session.user.id, recipe_id: recipeId });
@@ -89,7 +86,6 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "Recipe ID required" }, { status: 400 });
     }
 
-    // Only delete if it belongs to this user
     const { error } = await supabase
       .from("favorites")
       .delete()
