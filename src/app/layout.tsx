@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Navigation } from "@/components/navigation";
 import { AuthProvider } from "@/contexts/auth-context";
+import { RecipeChatbot } from "@/components/recipe-chatbot";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -81,6 +82,7 @@ export default function RootLayout({
           <main className="container mx-auto px-4 py-8 max-w-7xl">
             {children}
           </main>
+          <RecipeChatbot />
         </AuthProvider>
       </body>
     </html>
