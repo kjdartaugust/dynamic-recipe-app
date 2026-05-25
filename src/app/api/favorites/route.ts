@@ -14,7 +14,6 @@ export async function GET(request: NextRequest) {
     const recipeId = searchParams.get("recipeId");
 
     if (recipeId) {
-      // Check if specific recipe is favorited
       const { data } = await supabase
         .from("favorites")
         .select("id")
@@ -25,18 +24,19 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ isFavorited: !!data });
     }
 
-    // Get all favorited recipe IDs
     const { data, error } = await supabase
       .from("favorites")
       .select("recipe_id")
       .eq("user_id", session.user.id);
 
-    if (error) throw error;
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
 
     return NextResponse.json({ favorites: data?.map((f) => f.recipe_id) || [] });
   } catch (error) {
-    console.error("Favorites GET error:", error);
-    return NextResponse.json({ error: "Failed to fetch favorites" }, { status: 500 });
+    const msg = error instanceof Error ? error.message : "Unknown error";
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
 
@@ -59,12 +59,14 @@ export async function POST(request: NextRequest) {
       .from("favorites")
       .insert({ user_id: session.user.id, recipe_id: recipeId });
 
-    if (error) throw error;
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Favorites POST error:", error);
-    return NextResponse.json({ error: "Failed to add favorite" }, { status: 500 });
+    const msg = error instanceof Error ? error.message : "Unknown error";
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
 
@@ -90,11 +92,13 @@ export async function DELETE(request: NextRequest) {
       .eq("user_id", session.user.id)
       .eq("recipe_id", recipeId);
 
-    if (error) throw error;
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Favorites DELETE error:", error);
-    return NextResponse.json({ error: "Failed to remove favorite" }, { status: 500 });
+    const msg = error instanceof Error ? error.message : "Unknown error";
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
