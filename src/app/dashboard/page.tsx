@@ -44,9 +44,11 @@ export default async function DashboardPage() {
   const supabase = await createClient();
   
   // Get current user
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user }, error } = await supabase.auth.getUser();
+  console.log("[DASHBOARD] getUser:", user ? `user=${user.email}` : "null", error ? `error=${error.message}` : "");
   
   if (!user) {
+    console.log("[DASHBOARD] redirecting to /login");
     redirect("/login");
   }
 
