@@ -22,7 +22,9 @@ export function createRateLimiter(
   windowMs: number = 60 * 1000 // 1 minute
 ) {
   return function rateLimit(request: NextRequest): NextResponse | null {
-    const ip = request.ip || "anonymous";
+    const ip = request.headers.get("x-forwarded-for") || 
+               request.headers.get("x-real-ip") || 
+               "anonymous";
     const path = request.nextUrl.pathname;
     const key = `${ip}:${path}`;
     

@@ -23,14 +23,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-  try {
-    if (!OPENROUTER_API_KEY) {
-      return NextResponse.json(
-        { error: "OpenRouter API key is not configured" },
-        { status: 500 }
-      );
-    }
-
     const formData = await request.formData();
     const imageFile = formData.get("image") as File;
 
@@ -45,6 +37,14 @@ export async function POST(request: NextRequest) {
     if (!imageFile.type.startsWith("image/")) {
       return NextResponse.json(
         { error: "File must be an image" },
+        { status: 400 }
+      );
+    }
+
+    // Validate file size (5MB limit)
+    if (imageFile.size > 5 * 1024 * 1024) {
+      return NextResponse.json(
+        { error: "File size must be less than 5MB" },
         { status: 400 }
       );
     }
