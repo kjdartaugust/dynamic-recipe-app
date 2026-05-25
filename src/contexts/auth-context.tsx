@@ -20,10 +20,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const supabase = createClient();
 
   useEffect(() => {
-    console.log("[AUTH] AuthProvider mounted, calling getUser...");
     const getUser = async () => {
-      const { data: { user }, error } = await supabase.auth.getUser();
-      console.log("[AUTH] getUser result:", user ? `user=${user.email}` : "null", error ? `error=${error.message}` : "");
+      const { data: { user } } = await supabase.auth.getUser();
       setUser(user);
       setIsLoading(false);
     };
@@ -31,17 +29,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     getUser();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        console.log("[AUTH] onAuthStateChange event:", event, "session:", session ? "present" : "null");
+      (_event, session) => {
         setUser(session?.user ?? null);
         setIsLoading(false);
       }
     );
 
-    return () => {
-      console.log("[AUTH] AuthProvider cleanup - unsubscribing");
-      subscription.unsubscribe();
-    };
+    return () => subscription.unsubscribe();
   }, [supabase.auth]);
 
   const signIn = async (email: string, password: string) => {

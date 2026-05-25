@@ -2,15 +2,6 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function proxy(request: NextRequest) {
-  console.log(
-    "[PROXY] path:",
-    request.nextUrl.pathname,
-    "cookies:",
-    request.cookies
-      .getAll()
-      .map((c) => c.name)
-      .join(",")
-  );
   let supabaseResponse = NextResponse.next({
     request,
   });
