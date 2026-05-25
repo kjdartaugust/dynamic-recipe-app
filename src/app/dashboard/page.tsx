@@ -42,17 +42,13 @@ async function getCategories() {
 
 export default async function DashboardPage() {
   const supabase = await createClient();
-  
-  // Use getSession: reads from cookies (no network call). Proxy already refreshed stale tokens.
   const { data: { session } } = await supabase.auth.getSession();
-  console.log("[DASHBOARD] getSession:", session ? `user=${session.user.email}` : "null");
-  
+
   if (!session?.user) {
-    console.log("[DASHBOARD] redirecting to /login");
     redirect("/login");
   }
 
-  const recipes = await getMyRecipes(user.id);
+  const recipes = await getMyRecipes(session.user.id);
   const categories = await getCategories();
 
   return (
