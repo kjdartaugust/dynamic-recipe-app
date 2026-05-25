@@ -10,36 +10,20 @@ export const metadata = {
   description: "Your personal recipe collection",
 };
 
-async function getMyRecipesFull(userId: string): Promise<{ recipes: RecipeWithIngredients[]; error: string | null }> {
+async function getMyRecipes(userId: string): Promise<{ recipes: RecipeWithIngredients[]; error: string | null }> {
   const supabase = await createClient();
   const { data: recipes, error } = await supabase
     .from("recipes")
     .select(`
       *,
       ingredients (*),
-      profiles (username, avatar_url),
-      categories (name)
+      profiles (username, avatar_url)
     `)
     .eq("user_id", userId)
     .order("created_at", { ascending: false });
 
   if (error) {
-    return { recipes: [], error: `Full query failed: ${error.message}` };
-  }
-
-  return { recipes: recipes || [], error: null };
-}
-
-async function getMyRecipesSimple(userId: string): Promise<{ recipes: any[]; error: string | null }> {
-  const supabase = await createClient();
-  const { data: recipes, error } = await supabase
-    .from("recipes")
-    .select("*")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false });
-
-  if (error) {
-    return { recipes: [], error: `Simple query failed: ${error.message}` };
+    return { recipes: [], error: error.message };
   }
 
   return { recipes: recipes || [], error: null };
@@ -64,30 +48,30 @@ export default async function DashboardPage() {
 
   const userId = session.user.id;
 
-  // Try full query first
-  const fullResult = await getMyRecipesFull(userId);
-  
-  // Fallback to simple query if full returns empty OR errors (join issue)
-  let simpleResult: { recipes: any[]; error: string | null } = { recipes: [], error: null };
-  if (fullResult.recipes.length === 0) {
-    simpleResult = await getMyRecipesSimple(userId);
-  }
+  // Get recipes (joined with ingredients + profiles, but NOT categories to avoid RLS issues)
+  const result = await getMyRecipes(userId);
 
-  const recipes = fullResult.recipes.length > 0 ? fullResult.recipes : simpleResult.recipes;
-  const displayError = fullResult.error || simpleResult.error || null;
+  // Get categories separately for matching
+  const dbCategories = await getCategories();
+  const categoryMap = new Map(dbCategories.map(c => [c.id, c.name]));
 
-  const categories = await getCategories();
+  // Manually attach category names to recipes (avoids join RLS problems)
+  const recipes = result.recipes.map(recipe => ({
+    ...recipe,
+    categories: recipe.category_id
+      ? { name: categoryMap.get(recipe.category_id) || "Uncategorized" }
+      : null,
+  }));
 
   return (
     <div className="space-y-8">
-      {/* Error Alert */}
-      {displayError && (
+      {result.error && (
         <div className="bg-red-50 border border-red-200 rounded-xl p-4">
           <div className="flex items-center gap-2 text-red-800 font-semibold">
             <Flame className="h-4 w-4" />
             Query Error
           </div>
-          <p className="text-sm text-red-700 mt-1">{displayError}</p>
+          <p className="text-sm text-red-700 mt-1">{result.error}</p>
         </div>
       )}
 
@@ -107,9 +91,9 @@ export default async function DashboardPage() {
         </Link>
       </div>
 
-      <RecipeSearch categories={categories} />
+      <RecipeSearch categories={dbCategories} />
 
-      {recipes.length === 0 ? (
+      {recipes.length === 0 && !result.error ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <div className="p-6 bg-orange-50 rounded-full mb-6">
             <ChefHat className="h-12 w-12 text-orange-400" />
@@ -125,7 +109,7 @@ export default async function DashboardPage() {
             Create Recipe
           </Link>
         </div>
-      ) : (
+      ) : recipes.length === 0 ? null : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {recipes.map((recipe) => (
             <RecipeCard key={recipe.id} recipe={recipe} />
@@ -136,7 +120,7 @@ export default async function DashboardPage() {
   );
 }
 
-function RecipeCard({ recipe }: { recipe: RecipeWithIngredients }) {
+function RecipeCard({ recipe }: { recipe: any }) {
   const ingredientCount = recipe.ingredients?.length || 0;
   const calories = recipe.macros?.calories;
   const totalTime = (recipe.prep_time || 0) + (recipe.cook_time || 0);
@@ -156,7 +140,7 @@ function RecipeCard({ recipe }: { recipe: RecipeWithIngredients }) {
               <Flame className="h-14 w-14 text-orange-200 fire-icon" />
             </div>
           )}
-          {recipe.categories && (
+          {recipe.categories?.name && (
             <div className="absolute top-3 left-3">
               <span className="px-3 py-1 text-xs font-semibold bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-full shadow-md">
                 {recipe.categories.name}
