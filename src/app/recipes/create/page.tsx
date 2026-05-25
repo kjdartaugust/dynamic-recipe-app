@@ -9,13 +9,17 @@ export default async function CreateRecipePage() {
   console.log("[CREATE-SERVER] cookies present:", allCookies.length, "names:", allCookies.map(c => c.name).join(","));
 
   const supabase = await createClient();
-  const { data: { user }, error } = await supabase.auth.getUser();
-  console.log("[CREATE-SERVER] getUser result:", user ? `user=${user.email}` : "null", error ? `error=${error.message}` : "no error");
+  // Use getSession: reads from cookies (no network call). Proxy already refreshed stale tokens.
+  const { data: { session } } = await supabase.auth.getSession();
+  console.log("[CREATE-SERVER] getSession result:", session ? `user=${session.user.email}` : "null");
 
-  if (!user) {
+  if (!session?.user) {
     console.log("[CREATE-SERVER] redirecting to /login");
     redirect("/login");
   }
 
-  return <CreateRecipeForm userId={user.id} />;
+  return <CreateRecipeForm userId={session.user.id} />;
+}
+
+  return <CreateRecipeForm userId={session.user.id} />;
 }

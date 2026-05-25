@@ -43,11 +43,11 @@ async function getCategories() {
 export default async function DashboardPage() {
   const supabase = await createClient();
   
-  // Get current user
-  const { data: { user }, error } = await supabase.auth.getUser();
-  console.log("[DASHBOARD] getUser:", user ? `user=${user.email}` : "null", error ? `error=${error.message}` : "");
+  // Use getSession: reads from cookies (no network call). Proxy already refreshed stale tokens.
+  const { data: { session } } = await supabase.auth.getSession();
+  console.log("[DASHBOARD] getSession:", session ? `user=${session.user.email}` : "null");
   
-  if (!user) {
+  if (!session?.user) {
     console.log("[DASHBOARD] redirecting to /login");
     redirect("/login");
   }

@@ -2,8 +2,6 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function proxy(request: NextRequest) {
-  const cookieNames = request.cookies.getAll().map((c) => c.name);
-  console.log("[PROXY] path:", request.nextUrl.pathname, "cookies:", cookieNames.join(","));
   let supabaseResponse = NextResponse.next({
     request,
   });
@@ -36,18 +34,9 @@ export async function proxy(request: NextRequest) {
     }
   );
 
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
-  console.log("[PROXY] getUser:", user ? `user=${user.email}` : "null", error ? `error=${error.message}` : "");
-
-  if (request.nextUrl.pathname.startsWith("/recipes/create") && !user) {
-    console.log("[PROXY] redirecting /recipes/create to /login");
-    const url = request.nextUrl.clone();
-    url.pathname = "/login";
-    return NextResponse.redirect(url);
-  }
+  // Refresh session if expired — this writes refreshed cookies to the response.
+  // Do NOT redirect here; let server components handle auth gating.
+  await supabase.auth.getUser();
 
   return supabaseResponse;
 }
