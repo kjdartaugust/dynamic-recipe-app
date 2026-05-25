@@ -4,9 +4,9 @@ import { createClient } from "@/lib/supabase-server";
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
 
-    if (!session?.user) {
+    if (userError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
       const { data } = await supabase
         .from("favorites")
         .select("id")
-        .eq("user_id", session.user.id)
+        .eq("user_id", user.id)
         .eq("recipe_id", recipeId)
         .single();
 
@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
     const { data, error } = await supabase
       .from("favorites")
       .select("recipe_id")
-      .eq("user_id", session.user.id);
+      .eq("user_id", user.id);
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
@@ -43,9 +43,9 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
 
-    if (!session?.user) {
+    if (userError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
 
     const { error } = await supabase
       .from("favorites")
-      .insert({ user_id: session.user.id, recipe_id: recipeId });
+      .insert({ user_id: user.id, recipe_id: recipeId });
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
@@ -73,9 +73,9 @@ export async function POST(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const supabase = await createClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
 
-    if (!session?.user) {
+    if (userError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -89,7 +89,7 @@ export async function DELETE(request: NextRequest) {
     const { error } = await supabase
       .from("favorites")
       .delete()
-      .eq("user_id", session.user.id)
+      .eq("user_id", user.id)
       .eq("recipe_id", recipeId);
 
     if (error) {
