@@ -2,20 +2,12 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 
-interface VoiceControlState {
-  isListening: boolean;
-  transcript: string;
-  error: string | null;
-  supported: boolean;
-}
-
 interface UseVoiceControlOptions {
   onNext?: () => void;
   onBack?: () => void;
   onRepeat?: () => void;
   onTranscript?: (transcript: string) => void;
   language?: string;
-  continuous?: boolean;
 }
 
 export function useVoiceControl(options: UseVoiceControlOptions = {}) {
@@ -25,27 +17,22 @@ export function useVoiceControl(options: UseVoiceControlOptions = {}) {
     onRepeat,
     onTranscript,
     language = "en-US",
-    continuous = true,
   } = options;
 
-  const [state, setState] = useState<VoiceControlState>({
-    isListening: false,
-    transcript: "",
-    error: null,
-    supported: false,
-  });
+  const [isListening, setIsListening] = useState(false);
+  const [transcript, setTranscript] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [supported, setSupported] = useState(false);
 
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const isListeningRef = useRef(false);
+  const restartTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Check for browser support
+  // Check browser support once on mount
   useEffect(() => {
     const SpeechRecognitionAPI =
       window.SpeechRecognition || window.webkitSpeechRecognition;
-
-    if (SpeechRecognitionAPI) {
-      setState((prev) => ({ ...prev, supported: true }));
-    }
+    setSupported(!!SpeechRecognitionAPI);
   }, []);
 
   // Process voice commands
@@ -53,7 +40,6 @@ export function useVoiceControl(options: UseVoiceControlOptions = {}) {
     (transcript: string) => {
       const normalizedTranscript = transcript.toLowerCase().trim();
 
-      // Handle navigation commands
       if (
         normalizedTranscript.includes("next") ||
         normalizedTranscript.includes("forward") ||
@@ -81,11 +67,28 @@ export function useVoiceControl(options: UseVoiceControlOptions = {}) {
         return;
       }
 
-      // Pass through for custom handling
       onTranscript?.(transcript);
     },
     [onNext, onBack, onRepeat, onTranscript]
   );
+
+  // Stop listening helper
+  const doStop = useCallback(() => {
+    if (restartTimeoutRef.current) {
+      clearTimeout(restartTimeoutRef.current);
+      restartTimeoutRef.current = null;
+    }
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch {
+        // May already be stopped
+      }
+      recognitionRef.current = null;
+    }
+    isListeningRef.current = false;
+    setIsListening(false);
+  }, []);
 
   // Start listening
   const startListening = useCallback(() => {
@@ -93,31 +96,23 @@ export function useVoiceControl(options: UseVoiceControlOptions = {}) {
       window.SpeechRecognition || window.webkitSpeechRecognition;
 
     if (!SpeechRecognitionAPI) {
-      setState((prev) => ({
-        ...prev,
-        error: "Speech recognition is not supported in this browser",
-      }));
+      setError("Speech recognition is not supported in this browser. Please use Chrome or Edge.");
       return;
     }
 
-    // Stop any existing recognition
-    if (recognitionRef.current) {
-      recognitionRef.current.stop();
-    }
+    // Stop any existing first
+    doStop();
 
     const recognition = new SpeechRecognitionAPI();
-    recognition.continuous = continuous;
+    recognition.continuous = true;
     recognition.interimResults = true;
     recognition.lang = language;
 
     recognition.onstart = () => {
       isListeningRef.current = true;
-      setState((prev) => ({
-        ...prev,
-        isListening: true,
-        error: null,
-        transcript: "",
-      }));
+      setIsListening(true);
+      setError(null);
+      setTranscript("");
     };
 
     recognition.onresult = (event: SpeechRecognitionEvent) => {
@@ -125,92 +120,161 @@ export function useVoiceControl(options: UseVoiceControlOptions = {}) {
       let interimTranscript = "";
 
       for (let i = event.resultIndex; i < event.results.length; i++) {
-        const transcript = event.results[i][0].transcript;
+        const t = event.results[i][0].transcript;
         if (event.results[i].isFinal) {
-          finalTranscript += transcript;
+          finalTranscript += t;
         } else {
-          interimTranscript += transcript;
+          interimTranscript += t;
         }
       }
 
       if (finalTranscript) {
-        setState((prev) => ({ ...prev, transcript: finalTranscript }));
+        setTranscript(finalTranscript);
         processCommand(finalTranscript);
       } else if (interimTranscript) {
-        setState((prev) => ({ ...prev, transcript: interimTranscript }));
+        setTranscript(interimTranscript);
       }
     };
 
     recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
       console.error("Speech recognition error:", event.error);
-      setState((prev) => ({
-        ...prev,
-        error: event.error,
-        isListening: false,
-      }));
+      // Don't show 'no-speech' as an error - it's normal
+      if (event.error !== "no-speech" && event.error !== "aborted") {
+        setError(`Microphone error: ${event.error}`);
+      }
       isListeningRef.current = false;
+      setIsListening(false);
     };
 
     recognition.onend = () => {
       isListeningRef.current = false;
-      setState((prev) => ({ ...prev, isListening: false }));
-
-      // Restart if continuous mode and not manually stopped
-      if (continuous && state.isListening) {
-        setTimeout(() => {
-          if (isListeningRef.current === false) {
-            startListening();
-          }
-        }, 100);
-      }
+      setIsListening(false);
+      // Auto-restart after a short delay if the user hasn't manually stopped
+      restartTimeoutRef.current = setTimeout(() => {
+        if (!isListeningRef.current) {
+          // User might have clicked stop - check if we should restart
+          // Only restart if still "wanting" to listen (checked by state)
+          // Actually, simpler: don't auto-restart. Let user click again.
+        }
+      }, 500);
     };
 
     recognitionRef.current = recognition;
 
     try {
       recognition.start();
-    } catch (error) {
-      console.error("Failed to start speech recognition:", error);
-      setState((prev) => ({
-        ...prev,
-        error: "Failed to start speech recognition",
-        isListening: false,
-      }));
+    } catch (err) {
+      console.error("Failed to start speech recognition:", err);
+      setError("Failed to start microphone. Please check permissions.");
+      isListeningRef.current = false;
+      setIsListening(false);
     }
-  }, [continuous, language, processCommand, state.isListening]);
+  }, [language, processCommand, doStop]);
 
   // Stop listening
   const stopListening = useCallback(() => {
-    if (recognitionRef.current) {
-      recognitionRef.current.stop();
-      recognitionRef.current = null;
-    }
-    isListeningRef.current = false;
-    setState((prev) => ({ ...prev, isListening: false }));
-  }, []);
-
-  // Toggle listening
-  const toggleListening = useCallback(() => {
-    if (state.isListening) {
-      stopListening();
-    } else {
-      startListening();
-    }
-  }, [state.isListening, startListening, stopListening]);
+    doStop();
+  }, [doStop]);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (recognitionRef.current) {
-        recognitionRef.current.stop();
+      doStop();
+    };
+  }, [doStop]);
+
+  return {
+    isListening,
+    transcript,
+    error,
+    supported,
+    startListening,
+    stopListening,
+  };
+}
+
+// Text-to-Speech hook
+export function useTextToSpeech() {
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [selectedVoice, setSelectedVoice] = useState<SpeechSynthesisVoice | null>(null);
+  const [speaking, setSpeaking] = useState(false);
+  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+
+  useEffect(() => {
+    const loadVoices = () => {
+      const availableVoices = window.speechSynthesis.getVoices();
+      setVoices(availableVoices);
+
+      // Prefer English voices
+      const englishVoices = availableVoices.filter(
+        (v) => v.lang.startsWith("en") && !v.localService
+      );
+      const localEnglishVoices = availableVoices.filter(
+        (v) => v.lang.startsWith("en") && v.localService
+      );
+
+      // Prefer female voice, then first available
+      const preferred =
+        englishVoices.find((v) => v.name.toLowerCase().includes("female")) ||
+        englishVoices[0] ||
+        localEnglishVoices.find((v) => v.name.toLowerCase().includes("female")) ||
+        localEnglishVoices[0] ||
+        availableVoices[0];
+
+      if (preferred) {
+        setSelectedVoice(preferred);
       }
+    };
+
+    loadVoices();
+    window.speechSynthesis.onvoiceschanged = loadVoices;
+
+    return () => {
+      window.speechSynthesis.onvoiceschanged = null;
     };
   }, []);
 
+  const speak = useCallback(
+    (text: string) => {
+      if (!window.speechSynthesis) return;
+
+      // Cancel any ongoing speech
+      window.speechSynthesis.cancel();
+
+      const utterance = new SpeechSynthesisUtterance(text);
+      if (selectedVoice) {
+        utterance.voice = selectedVoice;
+      }
+      utterance.lang = "en-US";
+      utterance.rate = 0.9; // Slightly slower for clarity
+      utterance.pitch = 1.0;
+
+      utterance.onstart = () => setSpeaking(true);
+      utterance.onend = () => setSpeaking(false);
+      utterance.onerror = () => setSpeaking(false);
+
+      utteranceRef.current = utterance;
+      window.speechSynthesis.speak(utterance);
+    },
+    [selectedVoice]
+  );
+
+  const stop = useCallback(() => {
+    window.speechSynthesis.cancel();
+    setSpeaking(false);
+  }, []);
+
+  const changeVoice = useCallback((voice: SpeechSynthesisVoice) => {
+    setSelectedVoice(voice);
+  }, []);
+
   return {
-    ...state,
-    startListening,
-    stopListening,
-    toggleListening,
+    speak,
+    stop,
+    speaking,
+    voices,
+    selectedVoice,
+    changeVoice,
+    supported: typeof window !== "undefined" && "speechSynthesis" in window,
   };
 }

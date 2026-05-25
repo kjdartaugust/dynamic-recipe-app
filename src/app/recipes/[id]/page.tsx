@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase-server";
 import type { RecipeWithIngredients } from "@/lib/types";
 import { RecipeModifier } from "@/components/recipe-modifier";
 import { VoiceCookingAssistant } from "@/components/voice-cooking-assistant";
-import { ArrowLeft, Clock, Flame, Dumbbell, Wheat as WheatIcon, Droplets } from "lucide-react";
+import { ArrowLeft, Clock, Flame, Dumbbell, Wheat as WheatIcon, Droplets, ChefHat } from "lucide-react";
 
 interface RecipePageProps {
   params: Promise<{
@@ -56,15 +56,15 @@ export default async function RecipePage({ params }: RecipePageProps) {
       {/* Back Button */}
       <Link
         href="/dashboard"
-        className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+        className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-orange-600 transition-colors"
       >
         <ArrowLeft className="h-4 w-4" />
         Back to Dashboard
       </Link>
 
       {/* Header */}
-      <div className="space-y-4">
-        <div className="aspect-video bg-muted rounded-lg overflow-hidden">
+      <div className="space-y-6">
+        <div className="aspect-video rounded-2xl overflow-hidden gradient-bg-hero relative">
           {recipe.image_url ? (
             <img
               src={recipe.image_url}
@@ -73,34 +73,44 @@ export default async function RecipePage({ params }: RecipePageProps) {
             />
           ) : (
             <div className="flex items-center justify-center h-full">
-              <Flame className="h-16 w-16 text-muted-foreground" />
+              <Flame className="h-20 w-20 text-white/40 fire-icon-hover" />
             </div>
           )}
+          {/* Gradient overlay */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+          
+          {/* Title overlay */}
+          <div className="absolute bottom-0 left-0 right-0 p-6">
+            <h1 className="text-3xl md:text-4xl font-bold text-white drop-shadow-lg">
+              {recipe.title}
+            </h1>
+            {recipe.profiles && (
+              <p className="text-white/80 mt-1 text-sm">
+                By {recipe.profiles.username}
+              </p>
+            )}
+          </div>
         </div>
 
-        <div className="space-y-2">
-          <h1 className="text-3xl md:text-4xl font-bold">{recipe.title}</h1>
-          {recipe.profiles && (
-            <p className="text-muted-foreground">
-              By {recipe.profiles.username}
-            </p>
-          )}
-          {recipe.description && (
-            <p className="text-lg text-muted-foreground">{recipe.description}</p>
-          )}
-        </div>
+        {recipe.description && (
+          <p className="text-lg text-muted-foreground leading-relaxed">
+            {recipe.description}
+          </p>
+        )}
       </div>
 
       {/* AI Recipe Modifier */}
-      <RecipeModifier
-        recipe={{
-          id: recipe.id,
-          title: recipe.title,
-          description: recipe.description,
-          instructions: recipe.instructions,
-          ingredients: recipe.ingredients || [],
-        }}
-      />
+      <div className="p-5 bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl border border-orange-100">
+        <RecipeModifier
+          recipe={{
+            id: recipe.id,
+            title: recipe.title,
+            description: recipe.description,
+            instructions: recipe.instructions,
+            ingredients: recipe.ingredients || [],
+          }}
+        />
+      </div>
 
       {/* Macros */}
       {Object.keys(macros).length > 0 && (
@@ -110,24 +120,28 @@ export default async function RecipePage({ params }: RecipePageProps) {
             label="Calories"
             value={macros.calories}
             unit="kcal"
+            color="from-orange-500 to-red-500"
           />
           <MacroCard
             icon={Dumbbell}
             label="Protein"
             value={macros.protein}
             unit="g"
+            color="from-red-500 to-pink-500"
           />
           <MacroCard
             icon={WheatIcon}
             label="Carbs"
             value={macros.carbs}
             unit="g"
+            color="from-amber-500 to-orange-500"
           />
           <MacroCard
             icon={Droplets}
             label="Fat"
             value={macros.fat}
             unit="g"
+            color="from-yellow-500 to-amber-500"
           />
         </div>
       )}
@@ -135,16 +149,16 @@ export default async function RecipePage({ params }: RecipePageProps) {
       {/* Ingredients */}
       {recipe.ingredients && recipe.ingredients.length > 0 && (
         <div className="space-y-4">
-          <h2 className="text-2xl font-semibold">Ingredients</h2>
+          <h2 className="text-2xl font-bold gradient-text">Ingredients</h2>
           <ul className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {recipe.ingredients.map((ingredient) => (
               <li
                 key={ingredient.id}
-                className="flex items-center gap-3 p-3 border border-border rounded-lg"
+                className="flex items-center gap-3 p-4 bg-gradient-to-r from-orange-50/50 to-transparent rounded-xl border border-orange-100 hover:border-orange-300 transition-colors"
               >
-                <div className="h-2 w-2 rounded-full bg-primary" />
-                <span className="font-medium">{ingredient.name}</span>
-                <span className="text-muted-foreground ml-auto">
+                <div className="h-2.5 w-2.5 rounded-full bg-gradient-to-br from-orange-500 to-red-500 flex-shrink-0" />
+                <span className="font-medium text-foreground">{ingredient.name}</span>
+                <span className="text-muted-foreground ml-auto text-sm">
                   {ingredient.amount} {ingredient.unit}
                 </span>
               </li>
@@ -155,7 +169,7 @@ export default async function RecipePage({ params }: RecipePageProps) {
 
       {/* Instructions with Voice Control */}
       <div className="space-y-4">
-        <h2 className="text-2xl font-semibold">Instructions</h2>
+        <h2 className="text-2xl font-bold gradient-text">Instructions</h2>
         <VoiceCookingAssistant instructions={recipe.instructions} />
       </div>
     </div>
@@ -167,21 +181,25 @@ function MacroCard({
   label,
   value,
   unit,
+  color,
 }: {
   icon: React.ElementType;
   label: string;
   value?: number;
   unit: string;
+  color: string;
 }) {
   if (value === undefined || value === null) return null;
 
   return (
-    <div className="flex items-center gap-3 p-4 border border-border rounded-lg bg-card">
-      <Icon className="h-5 w-5 text-muted-foreground" />
+    <div className="flex items-center gap-3 p-4 rounded-xl bg-white border border-orange-100 warm-shadow hover:warm-shadow-lg transition-shadow">
+      <div className={`p-2.5 rounded-lg bg-gradient-to-br ${color} text-white`}>
+        <Icon className="h-5 w-5" />
+      </div>
       <div>
         <p className="text-sm text-muted-foreground">{label}</p>
-        <p className="font-semibold">
-          {value} {unit}
+        <p className="font-semibold text-lg">
+          {value} <span className="text-sm font-normal text-muted-foreground">{unit}</span>
         </p>
       </div>
     </div>

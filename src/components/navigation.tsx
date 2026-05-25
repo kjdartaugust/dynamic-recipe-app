@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
-import { ChefHat, Plus, LayoutDashboard, Menu, X, LogIn, LogOut, User } from "lucide-react";
+import { ChefHat, Plus, LayoutDashboard, Menu, X, LogIn, LogOut, User, Flame } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 
@@ -23,13 +23,15 @@ export function Navigation() {
   };
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <header className="sticky top-0 z-50 w-full border-b border-orange-100 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80">
       <div className="container mx-auto px-4 max-w-7xl">
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 font-bold text-xl">
-            <ChefHat className="h-6 w-6" />
-            <span className="hidden sm:inline">Dynamic Recipe App</span>
+          <Link href="/" className="flex items-center gap-2 font-bold text-xl group">
+            <div className="p-1.5 rounded-lg bg-gradient-to-br from-orange-500 to-red-500 text-white">
+              <Flame className="h-5 w-5 fire-icon" />
+            </div>
+            <span className="hidden sm:inline gradient-text">Dynamic Recipe App</span>
           </Link>
 
           {/* Desktop Navigation */}
@@ -39,9 +41,9 @@ export function Navigation() {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "flex items-center gap-2 text-sm font-medium transition-colors hover:text-primary",
+                  "flex items-center gap-2 text-sm font-medium transition-colors hover:text-orange-600",
                   pathname === item.href
-                    ? "text-foreground"
+                    ? "text-orange-600"
                     : "text-muted-foreground"
                 )}
               >
@@ -60,7 +62,7 @@ export function Navigation() {
                 </span>
                 <button
                   onClick={handleSignOut}
-                  className="inline-flex items-center gap-2 px-3 py-1.5 text-sm border border-border rounded-md hover:bg-accent transition-colors"
+                  className="inline-flex items-center gap-2 px-3 py-1.5 text-sm border border-orange-200 rounded-lg hover:bg-orange-50 transition-colors text-muted-foreground hover:text-orange-600"
                 >
                   <LogOut className="h-4 w-4" />
                   Sign Out
@@ -71,10 +73,10 @@ export function Navigation() {
                 <Link
                   href="/login"
                   className={cn(
-                    "inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-md transition-colors",
+                    "inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg transition-colors",
                     pathname === "/login"
-                      ? "bg-accent text-accent-foreground"
-                      : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                      ? "bg-orange-50 text-orange-600 border border-orange-200"
+                      : "text-muted-foreground hover:bg-orange-50 hover:text-orange-600"
                   )}
                 >
                   <LogIn className="h-4 w-4" />
@@ -82,7 +84,7 @@ export function Navigation() {
                 </Link>
                 <Link
                   href="/register"
-                  className="inline-flex items-center gap-2 px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+                  className="inline-flex items-center gap-2 px-4 py-1.5 text-sm btn-gradient text-white rounded-lg font-medium"
                 >
                   <User className="h-4 w-4" />
                   Sign Up
@@ -93,12 +95,12 @@ export function Navigation() {
 
           {/* Mobile Menu Button */}
           <button
-            className="md:hidden p-2 hover:bg-accent rounded-md"
+            className="md:hidden p-2 hover:bg-orange-50 rounded-lg transition-colors"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             aria-label="Toggle menu"
           >
             {mobileMenuOpen ? (
-              <X className="h-5 w-5" />
+              <X className="h-5 w-5 text-orange-600" />
             ) : (
               <Menu className="h-5 w-5" />
             )}
@@ -107,7 +109,7 @@ export function Navigation() {
 
         {/* Mobile Navigation */}
         {mobileMenuOpen && (
-          <nav className="md:hidden py-4 border-t border-border">
+          <nav className="md:hidden py-4 border-t border-orange-100">
             <div className="flex flex-col gap-2">
               {navItems.map((item) => (
                 <Link
@@ -115,17 +117,17 @@ export function Navigation() {
                   href={item.href}
                   onClick={() => setMobileMenuOpen(false)}
                   className={cn(
-                    "flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors",
+                    "flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
                     pathname === item.href
-                      ? "bg-accent text-accent-foreground"
-                      : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                      ? "bg-orange-50 text-orange-600"
+                      : "text-muted-foreground hover:bg-orange-50 hover:text-orange-600"
                   )}
                 >
                   <item.icon className="h-4 w-4" />
                   {item.label}
                 </Link>
               ))}
-              <div className="border-t border-border pt-2 mt-2">
+              <div className="border-t border-orange-100 pt-2 mt-2">
                 {user ? (
                   <>
                     <span className="px-3 py-2 text-sm text-muted-foreground block">
@@ -136,7 +138,7 @@ export function Navigation() {
                         handleSignOut();
                         setMobileMenuOpen(false);
                       }}
-                      className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:bg-accent rounded-md w-full"
+                      className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:bg-orange-50 hover:text-orange-600 rounded-lg w-full"
                     >
                       <LogOut className="h-4 w-4" />
                       Sign Out
@@ -147,7 +149,7 @@ export function Navigation() {
                     <Link
                       href="/login"
                       onClick={() => setMobileMenuOpen(false)}
-                      className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:bg-accent rounded-md"
+                      className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:bg-orange-50 hover:text-orange-600 rounded-lg"
                     >
                       <LogIn className="h-4 w-4" />
                       Sign In
@@ -155,7 +157,7 @@ export function Navigation() {
                     <Link
                       href="/register"
                       onClick={() => setMobileMenuOpen(false)}
-                      className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:bg-accent rounded-md"
+                      className="flex items-center gap-2 px-3 py-2 text-sm text-orange-600 hover:bg-orange-50 rounded-lg font-medium"
                     >
                       <User className="h-4 w-4" />
                       Sign Up

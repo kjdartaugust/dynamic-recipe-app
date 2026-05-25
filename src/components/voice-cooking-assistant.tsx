@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import { useVoiceControl } from "@/hooks/use-voice-control";
-import { Mic, MicOff, SkipForward, SkipBack, RotateCcw } from "lucide-react";
+import { useState, useCallback, useEffect } from "react";
+import { useVoiceControl, useTextToSpeech } from "@/hooks/use-voice-control";
+import { Mic, MicOff, SkipForward, SkipBack, RotateCcw, Volume2, VolumeX } from "lucide-react";
 
 interface VoiceCookingAssistantProps {
   instructions: string;
@@ -10,15 +10,20 @@ interface VoiceCookingAssistantProps {
 
 export function VoiceCookingAssistant({ instructions }: VoiceCookingAssistantProps) {
   const [currentStep, setCurrentStep] = useState(0);
+  const [readAloudEnabled, setReadAloudEnabled] = useState(false);
 
-  // Split instructions into steps (by newlines or numbers)
   const steps = instructions
     .split(/\n+/)
     .map((s) => s.trim())
     .filter((s) => s.length > 0);
 
+  const { speak, speaking, stop: stopSpeaking, supported: ttsSupported } = useTextToSpeech();
+
   const handleNext = useCallback(() => {
-    setCurrentStep((prev) => Math.min(prev + 1, steps.length - 1));
+    setCurrentStep((prev) => {
+      const next = Math.min(prev + 1, steps.length - 1);
+      return next;
+    });
   }, [steps.length]);
 
   const handleBack = useCallback(() => {
@@ -26,15 +31,27 @@ export function VoiceCookingAssistant({ instructions }: VoiceCookingAssistantPro
   }, []);
 
   const handleRepeat = useCallback(() => {
-    // Re-read current step (triggered by state update)
+    // Just trigger TTS re-read via useEffect
     setCurrentStep((prev) => prev);
   }, []);
 
-  const { isListening, supported, startListening, stopListening } = useVoiceControl({
+  const handleGoToStep = useCallback((index: number) => {
+    setCurrentStep(index);
+  }, []);
+
+  const { isListening, supported: voiceSupported, error: voiceError, startListening, stopListening } = useVoiceControl({
     onNext: handleNext,
     onBack: handleBack,
     onRepeat: handleRepeat,
   });
+
+  // Text-to-speech: read step aloud when it changes
+  useEffect(() => {
+    if (readAloudEnabled && ttsSupported && steps[currentStep]) {
+      stopSpeaking();
+      speak(`Step ${currentStep + 1}: ${steps[currentStep]}`);
+    }
+  }, [currentStep, readAloudEnabled, ttsSupported, steps, speak, stopSpeaking]);
 
   const toggleListening = () => {
     if (isListening) {
@@ -44,15 +61,29 @@ export function VoiceCookingAssistant({ instructions }: VoiceCookingAssistantPro
     }
   };
 
+  const toggleReadAloud = () => {
+    if (readAloudEnabled) {
+      setReadAloudEnabled(false);
+      stopSpeaking();
+    } else {
+      setReadAloudEnabled(true);
+      if (steps[currentStep]) {
+        speak(`Step ${currentStep + 1}: ${steps[currentStep]}`);
+      }
+    }
+  };
+
   if (steps.length === 0) return null;
 
   return (
     <div className="space-y-4">
       {/* Voice Control Bar */}
-      <div className="flex items-center gap-4 p-4 border border-border rounded-lg bg-card">
+      <div className="flex flex-wrap items-center gap-4 p-4 border border-border rounded-lg bg-card">
+        {/* Voice Recognition Button */}
         <button
           onClick={toggleListening}
-          disabled={!supported}
+          disabled={!voiceSupported}
+          title={!voiceSupported ? "Voice control requires Chrome or Edge" : undefined}
           className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
             isListening
               ? "bg-red-500 text-white hover:bg-red-600"
@@ -72,7 +103,31 @@ export function VoiceCookingAssistant({ instructions }: VoiceCookingAssistantPro
           )}
         </button>
 
-        <div className="flex items-center gap-2">
+        {/* Read Aloud Button */}
+        {ttsSupported && (
+          <button
+            onClick={toggleReadAloud}
+            className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+              readAloudEnabled
+                ? "bg-orange-500 text-white hover:bg-orange-600"
+                : "border border-border hover:bg-accent"
+            }`}
+          >
+            {readAloudEnabled ? (
+              <>
+                <Volume2 className="h-4 w-4" />
+                Reading Aloud
+              </>
+            ) : (
+              <>
+                <VolumeX className="h-4 w-4" />
+                Read Aloud
+              </>
+            )}
+          </button>
+        )}
+
+        <div className="flex items-center gap-2 ml-auto">
           <button
             onClick={handleBack}
             disabled={currentStep === 0}
@@ -102,8 +157,28 @@ export function VoiceCookingAssistant({ instructions }: VoiceCookingAssistantPro
         </div>
       </div>
 
+      {/* Browser Support Warning */}
+      {!voiceSupported && (
+        <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-700">
+          <strong>Voice commands not available.</strong> Please use Chrome or Edge browser for hands-free voice control.
+        </div>
+      )}
+
+      {/* Voice Error */}
+      {voiceError && (
+        <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+          <strong>Microphone error:</strong> {voiceError}
+        </div>
+      )}
+
       {/* Current Step Display */}
-      <div className="p-6 border-2 border-primary rounded-lg bg-primary/5">
+      <div className="p-6 border-2 border-primary rounded-lg bg-primary/5 relative">
+        {speaking && (
+          <div className="absolute top-2 right-2 flex items-center gap-1 text-xs text-orange-600 animate-pulse">
+            <Volume2 className="h-3 w-3" />
+            Speaking...
+          </div>
+        )}
         <p className="text-sm text-muted-foreground mb-2">
           Current Step ({currentStep + 1}/{steps.length})
         </p>
@@ -119,12 +194,12 @@ export function VoiceCookingAssistant({ instructions }: VoiceCookingAssistantPro
           {steps.map((step, index) => (
             <li
               key={index}
-              className={`p-3 rounded-lg transition-colors ${
+              className={`p-3 rounded-lg transition-colors cursor-pointer ${
                 index === currentStep
                   ? "bg-primary/10 border border-primary"
                   : "border border-border hover:bg-accent/50"
               }`}
-              onClick={() => setCurrentStep(index)}
+              onClick={() => handleGoToStep(index)}
             >
               <span className="text-sm text-muted-foreground mr-2">
                 {index + 1}.

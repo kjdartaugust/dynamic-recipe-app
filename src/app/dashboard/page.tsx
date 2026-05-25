@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase-server";
 import type { RecipeWithIngredients } from "@/lib/types";
-import { Clock, Users, ChefHat, AlertTriangle } from "lucide-react";
+import { Clock, Users, ChefHat, Flame } from "lucide-react";
 import { RecipeSearch } from "@/components/recipe-search";
 
 export const metadata = {
@@ -74,33 +74,17 @@ export default async function DashboardPage() {
   }
 
   const recipes = fullResult.recipes.length > 0 ? fullResult.recipes : simpleResult.recipes;
-  const hasError = fullResult.error || simpleResult.error;
   const displayError = fullResult.error || simpleResult.error || null;
 
   const categories = await getCategories();
 
   return (
     <div className="space-y-8">
-      {/* DEBUG BANNER - Temporary diagnostic tool */}
-      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 space-y-2">
-        <div className="flex items-center gap-2 text-yellow-800 font-semibold">
-          <AlertTriangle className="h-4 w-4" />
-          Debug Info (Temporary)
-        </div>
-        <div className="text-sm text-yellow-700 space-y-1">
-          <p><strong>User ID:</strong> {userId}</p>
-          <p><strong>Full Query:</strong> {fullResult.recipes.length} recipes {fullResult.error && `(Error: ${fullResult.error})`}</p>
-          <p><strong>Simple Query:</strong> {simpleResult.recipes.length} recipes {simpleResult.error && `(Error: ${simpleResult.error})`}</p>
-          <p><strong>Recipes Displayed:</strong> {recipes.length}</p>
-          <p><strong>Categories:</strong> {categories.length}</p>
-        </div>
-      </div>
-
       {/* Error Alert */}
       {displayError && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4">
           <div className="flex items-center gap-2 text-red-800 font-semibold">
-            <AlertTriangle className="h-4 w-4" />
+            <Flame className="h-4 w-4" />
             Query Error
           </div>
           <p className="text-sm text-red-700 mt-1">{displayError}</p>
@@ -109,14 +93,14 @@ export default async function DashboardPage() {
 
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">My Recipes</h1>
+          <h1 className="text-3xl font-bold gradient-text">My Recipes</h1>
           <p className="text-muted-foreground mt-1">
             Your personal recipe collection
           </p>
         </div>
         <Link
           href="/recipes/create"
-          className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors"
+          className="inline-flex items-center justify-center gap-2 px-5 py-2.5 btn-gradient text-white rounded-xl font-medium"
         >
           <ChefHat className="h-4 w-4" />
           Create Recipe
@@ -127,14 +111,16 @@ export default async function DashboardPage() {
 
       {recipes.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
-          <ChefHat className="h-12 w-12 text-muted-foreground mb-4" />
+          <div className="p-6 bg-orange-50 rounded-full mb-6">
+            <ChefHat className="h-12 w-12 text-orange-400" />
+          </div>
           <h2 className="text-xl font-semibold mb-2">No recipes yet</h2>
           <p className="text-muted-foreground mb-6">
             Get started by creating your first recipe
           </p>
           <Link
             href="/recipes/create"
-            className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors"
+            className="inline-flex items-center gap-2 px-6 py-3 btn-gradient text-white rounded-xl font-medium"
           >
             Create Recipe
           </Link>
@@ -157,8 +143,8 @@ function RecipeCard({ recipe }: { recipe: RecipeWithIngredients }) {
 
   return (
     <Link href={`/recipes/${recipe.id}`} className="group">
-      <article className="border border-border rounded-lg overflow-hidden bg-card hover:shadow-md transition-shadow">
-        <div className="aspect-video bg-muted relative overflow-hidden">
+      <article className="card-gradient rounded-xl overflow-hidden">
+        <div className="aspect-video bg-gradient-to-br from-orange-50 to-amber-50 relative overflow-hidden">
           {recipe.image_url ? (
             <img
               src={recipe.image_url}
@@ -167,19 +153,19 @@ function RecipeCard({ recipe }: { recipe: RecipeWithIngredients }) {
             />
           ) : (
             <div className="flex items-center justify-center h-full">
-              <ChefHat className="h-12 w-12 text-muted-foreground" />
+              <Flame className="h-14 w-14 text-orange-200 fire-icon" />
             </div>
           )}
           {recipe.categories && (
-            <div className="absolute top-2 left-2">
-              <span className="px-2 py-1 text-xs font-medium bg-black/50 text-white rounded-full">
+            <div className="absolute top-3 left-3">
+              <span className="px-3 py-1 text-xs font-semibold bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-full shadow-md">
                 {recipe.categories.name}
               </span>
             </div>
           )}
         </div>
-        <div className="p-4 space-y-3">
-          <h2 className="font-semibold text-lg line-clamp-1 group-hover:text-primary transition-colors">
+        <div className="p-5 space-y-3">
+          <h2 className="font-semibold text-lg line-clamp-1 text-foreground group-hover:text-orange-600 transition-colors">
             {recipe.title}
           </h2>
           {recipe.description && (
@@ -187,19 +173,20 @@ function RecipeCard({ recipe }: { recipe: RecipeWithIngredients }) {
               {recipe.description}
             </p>
           )}
-          <div className="flex items-center gap-4 text-sm text-muted-foreground">
+          <div className="flex items-center gap-4 text-sm text-muted-foreground pt-2 border-t border-orange-100">
             <span className="flex items-center gap-1">
-              <Users className="h-4 w-4" />
+              <Users className="h-3.5 w-3.5 text-orange-400" />
               {ingredientCount} ingredients
             </span>
             {totalTime > 0 && (
               <span className="flex items-center gap-1">
-                <Clock className="h-4 w-4" />
+                <Clock className="h-3.5 w-3.5 text-orange-400" />
                 {totalTime} min
               </span>
             )}
             {calories && (
               <span className="flex items-center gap-1">
+                <Flame className="h-3.5 w-3.5 text-orange-400" />
                 {calories} cal
               </span>
             )}
