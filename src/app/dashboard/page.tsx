@@ -67,9 +67,9 @@ export default async function DashboardPage() {
   // Try full query first
   const fullResult = await getMyRecipesFull(userId);
   
-  // Fallback to simple query if full returns empty (might be join issue)
+  // Fallback to simple query if full returns empty OR errors (join issue)
   let simpleResult: { recipes: any[]; error: string | null } = { recipes: [], error: null };
-  if (fullResult.recipes.length === 0 && !fullResult.error) {
+  if (fullResult.recipes.length === 0) {
     simpleResult = await getMyRecipesSimple(userId);
   }
 
