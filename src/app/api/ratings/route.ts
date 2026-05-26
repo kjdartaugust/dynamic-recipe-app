@@ -55,8 +55,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Upsert rating
-    const { data, error } = await supabase
+    // Upsert rating (insert or update)
+    const { error } = await supabase
       .from("ratings")
       .upsert(
         {
@@ -68,13 +68,24 @@ export async function POST(request: NextRequest) {
         {
           onConflict: "recipe_id,user_id",
         }
-      )
-      .select("*, profiles(username, avatar_url)")
-      .single();
+      );
 
     if (error) {
       console.error("[RATINGS] Error saving:", error);
-      return NextResponse.json({ error: "Failed to save rating" }, { status: 500 });
+      return NextResponse.json({ error: "Failed to save rating", details: error.message }, { status: 500 });
+    }
+
+    // Fetch the saved rating with profile info
+    const { data, error: fetchError } = await supabase
+      .from("ratings")
+      .select("*, profiles(username, avatar_url)")
+      .eq("recipe_id", recipeId)
+      .eq("user_id", user.id)
+      .single();
+
+    if (fetchError) {
+      console.error("[RATINGS] Error fetching saved rating:", fetchError);
+      return NextResponse.json({ error: "Saved but failed to refresh" }, { status: 500 });
     }
 
     return NextResponse.json({ rating: data });

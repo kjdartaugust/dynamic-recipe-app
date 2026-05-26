@@ -3,8 +3,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/auth-context";
 import { StarRating } from "./star-rating";
-import { Loader2, Send, Trash2, User } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Loader2, Send, Trash2, User, CheckCircle } from "lucide-react";
 
 interface Review {
   id: string;
@@ -32,10 +31,11 @@ export function RecipeRatings({ recipeId }: RecipeRatingsProps) {
   const [userReview, setUserReview] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
 
   useEffect(() => {
     fetchRatings();
-  }, [recipeId]);
+  }, [recipeId, user?.id]);
 
   const fetchRatings = async () => {
     setIsLoading(true);
@@ -48,10 +48,15 @@ export function RecipeRatings({ recipeId }: RecipeRatingsProps) {
         setCount(data.count);
 
         // Find user's existing rating
-        const existing = data.ratings.find((r: Review) => r.user_id === user?.id);
-        if (existing) {
-          setUserRating(existing.rating);
-          setUserReview(existing.review || "");
+        if (user?.id) {
+          const existing = data.ratings.find((r: Review) => r.user_id === user.id);
+          if (existing) {
+            setUserRating(existing.rating);
+            setUserReview(existing.review || "");
+          } else {
+            setUserRating(0);
+            setUserReview("");
+          }
         }
       }
     } catch (err) {
@@ -73,6 +78,7 @@ export function RecipeRatings({ recipeId }: RecipeRatingsProps) {
 
     setIsSubmitting(true);
     setError("");
+    setMessage("");
 
     try {
       const response = await fetch("/api/ratings", {
@@ -87,14 +93,16 @@ export function RecipeRatings({ recipeId }: RecipeRatingsProps) {
 
       const data = await response.json();
       if (!response.ok) {
-        throw new Error(data.error || "Failed to submit rating");
+        throw new Error(data.details || data.error || `Server error: ${response.status}`);
       }
 
-      // Refresh ratings
-      await fetchRatings();
-      setUserReview("");
+      setMessage("Rating submitted successfully!");
+      await fetchRatings(); // Refresh the list
+      setTimeout(() => setMessage(""), 3000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to submit");
+      const errorMsg = err instanceof Error ? err.message : "Failed to submit";
+      console.error("Rating submit error:", errorMsg);
+      setError(errorMsg);
     } finally {
       setIsSubmitting(false);
     }
@@ -124,6 +132,8 @@ export function RecipeRatings({ recipeId }: RecipeRatingsProps) {
     );
   }
 
+  const hasUserRated = ratings.some((r) => r.user_id === user?.id);
+
   return (
     <div className="space-y-6">
       {/* Rating Summary */}
@@ -141,8 +151,22 @@ export function RecipeRatings({ recipeId }: RecipeRatingsProps) {
       {user && (
         <div className="card-gradient rounded-xl p-5 border border-orange-100">
           <h3 className="font-semibold mb-3">
-            {ratings.some((r) => r.user_id === user.id) ? "Update your rating" : "Rate this recipe"}
+            {hasUserRated ? "Update your rating" : "Rate this recipe"}
           </h3>
+
+          {/* Success/Error Messages */}
+          {message && (
+            <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2 text-green-700 text-sm">
+              <CheckCircle className="h-4 w-4" />
+              {message}
+            </div>
+          )}
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+              {error}
+            </div>
+          )}
+
           <div className="space-y-3">
             <StarRating
               rating={userRating}
@@ -157,7 +181,6 @@ export function RecipeRatings({ recipeId }: RecipeRatingsProps) {
               rows={3}
               className="w-full px-4 py-2.5 text-sm border border-orange-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-orange-400 transition-all resize-none"
             />
-            {error && <p className="text-sm text-red-600">{error}</p>}
             <div className="flex gap-3">
               <button
                 onClick={handleSubmit}
@@ -169,9 +192,9 @@ export function RecipeRatings({ recipeId }: RecipeRatingsProps) {
                 ) : (
                   <Send className="h-4 w-4" />
                 )}
-                Submit
+                {hasUserRated ? "Update" : "Submit"}
               </button>
-              {ratings.some((r) => r.user_id === user.id) && (
+              {hasUserRated && (
                 <button
                   onClick={handleDelete}
                   className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-red-200 text-red-600 rounded-xl font-medium hover:bg-red-50 transition-colors"
