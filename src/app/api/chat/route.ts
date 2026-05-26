@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase-server";
 
 export async function POST(request: NextRequest) {
   try {
     const apiKey = process.env.OPENROUTER_API_KEY;
     
-    // Diagnostic: check if key exists (don't log the full key)
     if (!apiKey) {
       console.error("[CHAT] OPENROUTER_API_KEY is missing");
       return NextResponse.json(
@@ -12,35 +12,45 @@ export async function POST(request: NextRequest) {
         { status: 503 }
       );
     }
-    
-    console.log("[CHAT] API key present, length:", apiKey.length);
 
     const body = await request.json();
-    const { messages, recipeContext } = body;
+    const { messages, recipeContext, fridgeContext } = body;
 
     if (!messages || !Array.isArray(messages)) {
       return NextResponse.json({ error: "Messages array required" }, { status: 400 });
     }
 
-    const systemPrompt = `You are a helpful cooking and recipe assistant. You help users with:
-- Cooking techniques and tips
-- Ingredient substitutions
-- Recipe modifications and scaling
-- Food safety and storage
-- Nutritional information
-- Meal planning suggestions
+    // Build system prompt with all available context
+    let contextSections = [];
+    
+    if (fridgeContext && fridgeContext.length > 0) {
+      contextSections.push(`User's Fridge/Pantry:\n${fridgeContext}`);
+    }
+    
+    if (recipeContext) {
+      contextSections.push(`Current Recipe Context:\n${recipeContext}`);
+    }
+
+    const systemPrompt = `You are ZeroWaste Chef, a helpful cooking assistant focused on reducing food waste. Your mission is to help users cook with what they have before ingredients go bad.
+
+${contextSections.length > 0 ? contextSections.join("\n\n") + "\n\n" : ""}Your core abilities:
+- Suggest recipes using ingredients the user already has (especially expiring ones)
+- Recommend substitutions based on available ingredients
+- Teach cooking techniques and food preservation methods
+- Provide clear, practical advice to prevent food waste
+- Help scale recipes up or down
 
 Guidelines:
-- Keep responses concise and practical
+- ALWAYS prioritize using existing fridge ingredients when possible
+- If user has expiring items, suggest recipes that use them first
+- Keep responses concise and actionable
 - If suggesting substitutions, explain why they work
-- Always prioritize food safety
-- If unsure about something, say so rather than guessing
+- Prioritize food safety — never suggest using spoiled food
 - Use friendly, encouraging tone
 - Format ingredients and steps clearly with bullet points when helpful
+- If the user doesn't specify ingredients, proactively ask what's in their fridge`;
 
-${recipeContext ? `Current recipe context:\n${recipeContext}` : ""}`;
-
-    console.log("[CHAT] Calling OpenRouter with", messages.length, "messages");
+    console.log("[CHAT] Calling OpenRouter with fridge context:", !!fridgeContext, "recipe context:", !!recipeContext);
 
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
@@ -61,13 +71,11 @@ ${recipeContext ? `Current recipe context:\n${recipeContext}` : ""}`;
       }),
     });
 
-    console.log("[CHAT] OpenRouter response status:", response.status);
-
     if (!response.ok) {
       const errorText = await response.text();
       console.error("[CHAT] OpenRouter error:", response.status, errorText);
       return NextResponse.json(
-        { error: `AI service error: ${response.status} - ${errorText.slice(0, 200)}` },
+        { error: `AI service error: ${response.status}` },
         { status: 503 }
       );
     }
@@ -76,11 +84,9 @@ ${recipeContext ? `Current recipe context:\n${recipeContext}` : ""}`;
     const reply = data.choices?.[0]?.message?.content;
 
     if (!reply) {
-      console.error("[CHAT] No reply in response:", JSON.stringify(data).slice(0, 500));
       return NextResponse.json({ error: "No response content from AI" }, { status: 500 });
     }
 
-    console.log("[CHAT] Success, reply length:", reply.length);
     return NextResponse.json({ reply });
   } catch (error) {
     console.error("[CHAT] Unexpected error:", error);

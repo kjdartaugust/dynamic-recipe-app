@@ -8,7 +8,8 @@ import { TagDisplay } from "@/components/tag-display";
 import { AddToShoppingList } from "@/components/add-to-shopping-list";
 import { RecipeRatings } from "@/components/recipe-ratings";
 import { VisibilityToggle } from "@/components/visibility-toggle";
-import { ArrowLeft, Clock, Flame, Dumbbell, Wheat as WheatIcon, Droplets, ChefHat, Tag as TagIcon, Star } from "lucide-react";
+import { RecipeInstructions } from "@/components/recipe-instructions";
+import { ArrowLeft, Clock, Flame, Dumbbell, Wheat as WheatIcon, Droplets, Tag as TagIcon, Star } from "lucide-react";
 
 interface RecipePageProps {
   params: Promise<{
