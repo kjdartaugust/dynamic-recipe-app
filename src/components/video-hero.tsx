@@ -9,37 +9,63 @@ const HERO_VIDEO_URL =
   "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4";
 
 export function VideoHero() {
-  const [isMobile, setIsMobile] = useState(false);
-  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
-  const [videoError, setVideoError] = useState(false);
+  const [canPlayVideo, setCanPlayVideo] = useState(false);
+  const [useVideo, setUseVideo] = useState(true);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 768);
-    checkMobile();
-    window.addEventListener("resize", checkMobile);
+    // Check reduced motion preference
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    if (mq.matches) {
+      setUseVideo(false);
+      return;
+    }
 
-    const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
-    setPrefersReducedMotion(mediaQuery.matches);
-    const handleMotionChange = (e: MediaQueryListEvent) =>
-      setPrefersReducedMotion(e.matches);
-    mediaQuery.addEventListener("change", handleMotionChange);
-
-    return () => {
-      window.removeEventListener("resize", checkMobile);
-      mediaQuery.removeEventListener("change", handleMotionChange);
+    const handler = (e: MediaQueryListEvent) => {
+      if (e.matches) setUseVideo(false);
     };
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
   }, []);
 
-  const showVideo = !isMobile && !prefersReducedMotion && !videoError;
+  useEffect(() => {
+    if (!useVideo || !videoRef.current) return;
+
+    const video = videoRef.current;
+
+    // Try to play programmatically (needed for some browsers)
+    const tryPlay = async () => {
+      try {
+        await video.play();
+        setCanPlayVideo(true);
+      } catch (err) {
+        console.log("Autoplay prevented, using gradient fallback");
+        setUseVideo(false);
+      }
+    };
+
+    // If video is already ready, play immediately
+    if (video.readyState >= 3) {
+      tryPlay();
+    } else {
+      video.addEventListener("canplay", tryPlay, { once: true });
+      video.addEventListener("error", () => {
+        console.log("Video failed to load, using gradient fallback");
+        setUseVideo(false);
+      }, { once: true });
+    }
+  }, [useVideo]);
 
   return (
     <section className="relative min-h-[calc(100vh-4rem)] flex items-center justify-center overflow-hidden">
-      {/* Base gradient layer - always present as fallback */}
-      <div className="absolute inset-0 gradient-bg-hero" />
+      {/* Gradient base layer - ALWAYS visible */}
+      <div 
+        className="absolute inset-0 gradient-bg-hero"
+        style={{ zIndex: 0 }}
+      />
 
-      {/* Video layer - sits on top of gradient */}
-      {showVideo && (
+      {/* Video layer - sits on top of gradient, fades in when ready */}
+      {useVideo && (
         <video
           ref={videoRef}
           autoPlay
@@ -47,9 +73,11 @@ export function VideoHero() {
           loop
           playsInline
           preload="auto"
-          onError={() => setVideoError(true)}
-          className="absolute inset-0 w-full h-full object-cover"
-          style={{ zIndex: 1 }}
+          className="absolute inset-0 w-full h-full object-cover transition-opacity duration-1000"
+          style={{ 
+            zIndex: 1, 
+            opacity: canPlayVideo ? 1 : 0 
+          }}
           aria-hidden="true"
         >
           <source src={HERO_VIDEO_URL} type="video/mp4" />
@@ -57,20 +85,16 @@ export function VideoHero() {
       )}
 
       {/* Dark Overlay for text readability */}
-      <div className="absolute inset-0 bg-black/50" style={{ zIndex: 2 }} />
-
-      {/* Decorative subtle gradient orbs */}
-      <div
-        className="absolute top-20 left-10 w-72 h-72 bg-orange-500/20 rounded-full blur-3xl pointer-events-none"
-        style={{ zIndex: 2 }}
-      />
-      <div
-        className="absolute bottom-20 right-10 w-96 h-96 bg-red-500/10 rounded-full blur-3xl pointer-events-none"
+      <div 
+        className="absolute inset-0 bg-black/50"
         style={{ zIndex: 2 }}
       />
 
       {/* Content */}
-      <div className="relative container mx-auto px-4 max-w-5xl text-center" style={{ zIndex: 10 }}>
+      <div 
+        className="relative container mx-auto px-4 max-w-5xl text-center"
+        style={{ zIndex: 10 }}
+      >
         <div className="flex flex-col items-center gap-6">
           {/* Fire Icon */}
           <div className="relative">
