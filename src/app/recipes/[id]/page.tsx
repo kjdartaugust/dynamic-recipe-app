@@ -6,7 +6,8 @@ import { RecipeModifier } from "@/components/recipe-modifier";
 import { VoiceCookingAssistant } from "@/components/voice-cooking-assistant";
 import { TagDisplay } from "@/components/tag-display";
 import { AddToShoppingList } from "@/components/add-to-shopping-list";
-import { ArrowLeft, Clock, Flame, Dumbbell, Wheat as WheatIcon, Droplets, ChefHat, Tag as TagIcon } from "lucide-react";
+import { RecipeRatings } from "@/components/recipe-ratings";
+import { ArrowLeft, Clock, Flame, Dumbbell, Wheat as WheatIcon, Droplets, ChefHat, Tag as TagIcon, Star } from "lucide-react";
 
 interface RecipePageProps {
   params: Promise<{
@@ -200,6 +201,15 @@ export default async function RecipePage({ params }: RecipePageProps) {
       <div className="space-y-4">
         <h2 className="text-2xl font-bold gradient-text">Instructions</h2>
         <VoiceCookingAssistant instructions={recipe.instructions} />
+      </div>
+
+      {/* Ratings & Reviews */}
+      <div className="space-y-4">
+        <h2 className="text-2xl font-bold gradient-text flex items-center gap-2">
+          <Star className="h-6 w-6 text-yellow-500" />
+          Ratings & Reviews
+        </h2>
+        <RecipeRatings recipeId={recipe.id} />
       </div>
     </div>
   );

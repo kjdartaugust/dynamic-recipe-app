@@ -18,9 +18,10 @@ interface TagData {
 
 interface RecipeSearchProps {
   categories: Category[];
+  currentFilter?: string;
 }
 
-export function RecipeSearch({ categories }: RecipeSearchProps) {
+export function RecipeSearch({ categories, currentFilter = "all" }: RecipeSearchProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [searchQuery, setSearchQuery] = useState(searchParams.get("q") || "");
@@ -31,7 +32,6 @@ export function RecipeSearch({ categories }: RecipeSearchProps) {
   );
   const [showFilters, setShowFilters] = useState(false);
   const [allTags, setAllTags] = useState<TagData[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
 
   useEffect(() => {
     fetch("/api/tags")
@@ -48,15 +48,17 @@ export function RecipeSearch({ categories }: RecipeSearchProps) {
     if (ingredientQuery.trim()) params.set("ingredients", ingredientQuery.trim());
     if (selectedCategory) params.set("category", selectedCategory);
     if (selectedTags.length > 0) params.set("tags", selectedTags.join(","));
+    if (currentFilter && currentFilter !== "all") params.set("filter", currentFilter);
 
     const queryString = params.toString();
     router.push(`/dashboard${queryString ? `?${queryString}` : ""}`);
-  }, [searchQuery, ingredientQuery, selectedCategory, selectedTags, router]);
+  }, [searchQuery, ingredientQuery, selectedCategory, selectedTags, currentFilter, router]);
 
+  // Debounced search
   useEffect(() => {
     const timeout = setTimeout(() => {
       performSearch();
-    }, 400);
+    }, 300);
     return () => clearTimeout(timeout);
   }, [searchQuery, ingredientQuery, selectedCategory, selectedTags, performSearch]);
 
@@ -71,7 +73,7 @@ export function RecipeSearch({ categories }: RecipeSearchProps) {
     setIngredientQuery("");
     setSelectedCategory("");
     setSelectedTags([]);
-    router.push("/dashboard");
+    router.push(`/dashboard${currentFilter !== "all" ? `?filter=${currentFilter}` : ""}`);
   };
 
   const hasActiveFilters = searchQuery || ingredientQuery || selectedCategory || selectedTags.length > 0;

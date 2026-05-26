@@ -77,3 +77,23 @@ export interface ShoppingList {
   created_at: string
   updated_at: string
 }
+
+export interface Rating {
+  id: string
+  recipe_id: string
+  user_id: string
+  rating: number
+  review: string | null
+  created_at: string
+  updated_at: string
+  profiles?: Profile | null
+}
+
+export interface MealPlan {
+  id: string
+  user_id: string
+  week_start: string
+  meals: Record<string, Record<string, string | null>>
+  created_at: string
+  updated_at: string
+}

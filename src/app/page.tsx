@@ -1,52 +1,12 @@
 import Link from "next/link";
-import { ChefHat, ArrowRight, Camera, Sparkles, Mic } from "lucide-react";
+import { ArrowRight, Camera, Sparkles, Mic } from "lucide-react";
+import { VideoHero } from "@/components/video-hero";
 
 export default function HomePage() {
   return (
     <div className="flex flex-col">
-      {/* Hero Section */}
-      <section className="relative gradient-bg-hero min-h-[calc(100vh-4rem)] flex items-center justify-center overflow-hidden">
-        {/* Decorative circles */}
-        <div className="absolute top-20 left-10 w-72 h-72 bg-white/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-20 right-10 w-96 h-96 bg-yellow-300/10 rounded-full blur-3xl" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-orange-400/10 rounded-full blur-3xl" />
-
-        <div className="relative z-10 container mx-auto px-4 max-w-5xl text-center">
-          <div className="flex flex-col items-center gap-6">
-            {/* Fire Icon */}
-            <div className="relative">
-              <div className="absolute inset-0 bg-orange-500/20 blur-xl rounded-full scale-150" />
-              <div className="relative p-5 bg-white/10 backdrop-blur-sm rounded-full border border-white/20">
-                <ChefHat className="h-16 w-16 text-white fire-icon" />
-              </div>
-            </div>
-
-            <h1 className="text-5xl md:text-7xl font-bold text-white tracking-tight drop-shadow-lg">
-              Dynamic Recipe App
-            </h1>
-            <p className="text-xl md:text-2xl text-white/90 max-w-2xl leading-relaxed">
-              AI-powered recipe management. Scan ingredients, modify recipes, and
-              cook with voice control.
-            </p>
-
-            <div className="flex flex-col sm:flex-row gap-4 mt-4">
-              <Link
-                href="/dashboard"
-                className="inline-flex items-center gap-2 px-8 py-4 bg-white text-orange-600 rounded-xl font-semibold hover:bg-white/90 transition-all hover:shadow-xl hover:-translate-y-0.5"
-              >
-                View Recipes
-                <ArrowRight className="h-5 w-5" />
-              </Link>
-              <Link
-                href="/recipes/create"
-                className="inline-flex items-center gap-2 px-8 py-4 bg-white/10 text-white rounded-xl font-semibold border border-white/30 hover:bg-white/20 transition-all backdrop-blur-sm"
-              >
-                Create Recipe
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
+      {/* Hero Section with Video Background */}
+      <VideoHero />
 
       {/* Features Section */}
       <section className="py-20 bg-background">

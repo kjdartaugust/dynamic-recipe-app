@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase-server";
 import type { RecipeWithIngredients, Tag } from "@/lib/types";
-import { Clock, Users, ChefHat, Flame, Heart, Search } from "lucide-react";
+import { Clock, Users, ChefHat, Flame, Heart, Search, Star } from "lucide-react";
 import { RecipeSearch } from "@/components/recipe-search";
 import { FavoriteButton } from "@/components/favorite-button";
 import { TagDisplay } from "@/components/tag-display";
@@ -69,6 +69,32 @@ async function getRecipeTagsMap(recipeIds: string[]): Promise<Map<string, Tag[]>
     existing.push(rt.tags);
     map.set(rt.recipe_id, existing);
   });
+  return map;
+}
+
+async function getRecipeRatingsMap(recipeIds: string[]): Promise<Map<string, { average: number; count: number }>> {
+  if (recipeIds.length === 0) return new Map();
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("ratings")
+    .select("recipe_id, rating")
+    .in("recipe_id", recipeIds);
+
+  if (error || !data) return new Map();
+
+  const map = new Map<string, { average: number; count: number }>();
+  const groups: Record<string, number[]> = {};
+
+  data.forEach((r: any) => {
+    if (!groups[r.recipe_id]) groups[r.recipe_id] = [];
+    groups[r.recipe_id].push(r.rating);
+  });
+
+  Object.entries(groups).forEach(([recipeId, ratings]) => {
+    const avg = ratings.reduce((a, b) => a + b, 0) / ratings.length;
+    map.set(recipeId, { average: avg, count: ratings.length });
+  });
+
   return map;
 }
 
@@ -181,6 +207,8 @@ export default async function DashboardPage({
   const ingredients = typeof params.ingredients === "string" ? params.ingredients : undefined;
   const category = typeof params.category === "string" ? params.category : undefined;
   const tagsParam = typeof params.tags === "string" ? params.tags : undefined;
+  const pageParam = typeof params.page === "string" ? parseInt(params.page, 10) : 1;
+  const currentPage = isNaN(pageParam) || pageParam < 1 ? 1 : pageParam;
 
   const hasSearchParams = q || ingredients || category || tagsParam;
 
@@ -199,18 +227,31 @@ export default async function DashboardPage({
   const dbCategories = await getCategories();
   const categoryMap = new Map(dbCategories.map((c) => [c.id, c.name]));
 
-  // Get tags for all recipes
+  // Get tags and ratings for all recipes
   const recipeIds = result.recipes.map((r) => r.id);
-  const tagsMap = await getRecipeTagsMap(recipeIds);
+  const [tagsMap, ratingsMap] = await Promise.all([
+    getRecipeTagsMap(recipeIds),
+    getRecipeRatingsMap(recipeIds),
+  ]);
 
-  // Manually attach category names and tags to recipes
-  const recipes = result.recipes.map((recipe) => ({
+  // Manually attach category names, tags, and ratings to recipes
+  let recipes = result.recipes.map((recipe) => ({
     ...recipe,
     categories: recipe.category_id
       ? { name: categoryMap.get(recipe.category_id) || "Uncategorized" }
       : null,
     tags: tagsMap.get(recipe.id) || [],
+    rating: ratingsMap.get(recipe.id) || null,
   }));
+
+  // Sort by popularity if filter is "popular"
+  if (filter === "popular") {
+    recipes = recipes.sort((a, b) => {
+      const aAvg = a.rating?.average || 0;
+      const bAvg = b.rating?.average || 0;
+      return bAvg - aAvg;
+    });
+  }
 
   // Filter recipes
   const filteredRecipes =
@@ -219,6 +260,25 @@ export default async function DashboardPage({
       : recipes;
 
   const isSearchActive = hasSearchParams && filter !== "favorites";
+
+  // Pagination
+  const PAGE_SIZE = 12;
+  const totalPages = Math.ceil(filteredRecipes.length / PAGE_SIZE);
+  const paginatedRecipes = filteredRecipes.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE
+  );
+
+  const buildPageUrl = (page: number) => {
+    const p = new URLSearchParams();
+    if (filter && filter !== "all") p.set("filter", filter);
+    if (q) p.set("q", q);
+    if (ingredients) p.set("ingredients", ingredients);
+    if (category) p.set("category", category);
+    if (tagsParam) p.set("tags", tagsParam);
+    p.set("page", String(page));
+    return `/dashboard?${p.toString()}`;
+  };
 
   return (
     <div className="space-y-8">
@@ -249,11 +309,11 @@ export default async function DashboardPage({
       </div>
 
       {/* Filter Tabs */}
-      <div className="flex gap-2">
+      <div className="flex gap-2 flex-wrap">
         <Link
           href="/dashboard"
           className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-            filter !== "favorites"
+            filter === "all" || (!filter && !hasSearchParams)
               ? "bg-orange-100 text-orange-700"
               : "text-muted-foreground hover:bg-orange-50"
           }`}
@@ -274,9 +334,20 @@ export default async function DashboardPage({
           Favorites
           <span className="px-1.5 py-0.5 bg-white rounded-md text-xs">{favoriteIds.length}</span>
         </Link>
+        <Link
+          href="/dashboard?filter=popular"
+          className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            filter === "popular"
+              ? "bg-yellow-100 text-yellow-700"
+              : "text-muted-foreground hover:bg-yellow-50"
+          }`}
+        >
+          <Star className="h-4 w-4" />
+          Most Popular
+        </Link>
       </div>
 
-      <RecipeSearch categories={dbCategories} />
+      <RecipeSearch categories={dbCategories} currentFilter={filter} />
 
       {isSearchActive && (
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -289,26 +360,43 @@ export default async function DashboardPage({
         </div>
       )}
 
+      {/* Pagination info */}
+      {filteredRecipes.length > PAGE_SIZE && (
+        <div className="text-sm text-muted-foreground">
+          Page {currentPage} of {totalPages} ({filteredRecipes.length} recipes)
+        </div>
+      )}
+
       {filteredRecipes.length === 0 && !result.error ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <div className="p-6 bg-orange-50 rounded-full mb-6">
             {filter === "favorites" ? (
               <Heart className="h-12 w-12 text-red-300" />
+            ) : filter === "popular" ? (
+              <Star className="h-12 w-12 text-yellow-400" />
             ) : (
               <ChefHat className="h-12 w-12 text-orange-400" />
             )}
           </div>
           <h2 className="text-xl font-semibold mb-2">
-            {filter === "favorites" ? "No favorites yet" : isSearchActive ? "No recipes found" : "No recipes yet"}
+            {filter === "favorites"
+              ? "No favorites yet"
+              : filter === "popular"
+              ? "No rated recipes yet"
+              : isSearchActive
+              ? "No recipes found"
+              : "No recipes yet"}
           </h2>
           <p className="text-muted-foreground mb-6">
             {filter === "favorites"
               ? "Heart recipes to save them here"
+              : filter === "popular"
+              ? "Rate your recipes to see them here"
               : isSearchActive
               ? "Try adjusting your search or filters"
               : "Get started by creating your first recipe"}
           </p>
-          {filter !== "favorites" && !isSearchActive && (
+          {filter !== "favorites" && filter !== "popular" && !isSearchActive && (
             <Link
               href="/recipes/create"
               className="inline-flex items-center gap-2 px-6 py-3 btn-gradient text-white rounded-xl font-medium"
@@ -319,9 +407,50 @@ export default async function DashboardPage({
         </div>
       ) : filteredRecipes.length === 0 ? null : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredRecipes.map((recipe) => (
+          {paginatedRecipes.map((recipe) => (
             <RecipeCard key={recipe.id} recipe={recipe} isFavorited={favoriteIds.includes(recipe.id)} />
           ))}
+        </div>
+      )}
+
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2 pt-4">
+          <Link
+            href={buildPageUrl(currentPage - 1)}
+            className={`px-4 py-2 rounded-lg border border-orange-200 text-sm font-medium transition-colors ${
+              currentPage <= 1
+                ? "opacity-50 pointer-events-none text-muted-foreground"
+                : "hover:bg-orange-50 text-foreground"
+            }`}
+          >
+            Previous
+          </Link>
+          <div className="flex items-center gap-1">
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+              <Link
+                key={page}
+                href={buildPageUrl(page)}
+                className={`w-10 h-10 flex items-center justify-center rounded-lg text-sm font-medium transition-colors ${
+                  page === currentPage
+                    ? "bg-gradient-to-r from-orange-500 to-red-500 text-white"
+                    : "hover:bg-orange-50 text-foreground"
+                }`}
+              >
+                {page}
+              </Link>
+            ))}
+          </div>
+          <Link
+            href={buildPageUrl(currentPage + 1)}
+            className={`px-4 py-2 rounded-lg border border-orange-200 text-sm font-medium transition-colors ${
+              currentPage >= totalPages
+                ? "opacity-50 pointer-events-none text-muted-foreground"
+                : "hover:bg-orange-50 text-foreground"
+            }`}
+          >
+            Next
+          </Link>
         </div>
       )}
     </div>
@@ -360,10 +489,20 @@ function RecipeCard({ recipe, isFavorited }: { recipe: any; isFavorited: boolean
             <FavoriteButton recipeId={recipe.id} initialFavorited={isFavorited} />
           </div>
         </div>
-        <div className="p-5 space-y-3">
-          <h2 className="font-semibold text-lg line-clamp-1 text-foreground group-hover:text-orange-600 transition-colors">
-            {recipe.title}
-          </h2>
+            <div className="p-5 space-y-3">
+              <div className="flex items-start justify-between gap-2">
+                <h2 className="font-semibold text-lg line-clamp-1 text-foreground group-hover:text-orange-600 transition-colors">
+                  {recipe.title}
+                </h2>
+                {recipe.rating && recipe.rating.count > 0 && (
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <Star className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" />
+                    <span className="text-xs font-medium text-muted-foreground">
+                      {recipe.rating.average.toFixed(1)}
+                    </span>
+                  </div>
+                )}
+              </div>
           {recipe.description && (
             <p className="text-sm text-muted-foreground line-clamp-2">
               {recipe.description}
