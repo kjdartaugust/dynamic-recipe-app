@@ -5,13 +5,13 @@ import Link from "next/link";
 import { ChefHat, ArrowRight } from "lucide-react";
 
 // Swappable video source - replace this URL with your AI-generated video later
-// Using Pixabay CDN which allows hotlinking
+// Using Google's reliable sample video CDN (guaranteed to work)
 const HERO_VIDEO_URL =
-  "https://cdn.pixabay.com/video/2022/03/18/110253-693130522_large.mp4";
+  "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4";
 
-// Poster image shown while video loads (and on mobile)
+// Poster image shown while video loads (and on mobile/reduced-motion)
 const HERO_POSTER_URL =
-  "https://images.pexels.com/photos/4253312/pexels-photo-4253312.jpeg?auto=compress&cs=tinysrgb&w=1920";
+  "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=1920&q=80";
 
 export function VideoHero() {
   const [isMobile, setIsMobile] = useState(false);
