@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
-import { ChefHat, Plus, LayoutDashboard, Menu, X, LogIn, LogOut, User, Flame, ShoppingCart, Settings, Calendar, Globe } from "lucide-react";
+import { ChefHat, Plus, LayoutDashboard, Menu, X, LogIn, LogOut, User, Flame, ShoppingCart, Settings, Calendar, Globe, Refrigerator } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 
@@ -14,6 +14,7 @@ export function Navigation() {
 
   const navItems = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/fridge", label: "My Fridge", icon: Refrigerator },
     { href: "/explore", label: "Explore", icon: Globe },
     { href: "/recipes/create", label: "Create Recipe", icon: Plus },
     { href: "/meal-plan", label: "Meal Plan", icon: Calendar },
