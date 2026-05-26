@@ -2,13 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(request: NextRequest) {
   try {
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = process.env.OPENROUTER_API_KEY;
     
     // Diagnostic: check if key exists (don't log the full key)
     if (!apiKey) {
-      console.error("[CHAT] GEMINI_API_KEY is missing");
+      console.error("[CHAT] OPENROUTER_API_KEY is missing");
       return NextResponse.json(
-        { error: "Server config error: GEMINI_API_KEY not set" },
+        { error: "Server config error: OPENROUTER_API_KEY not set" },
         { status: 503 }
       );
     }

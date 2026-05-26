@@ -11,6 +11,11 @@ interface VoiceCookingAssistantProps {
 export function VoiceCookingAssistant({ instructions }: VoiceCookingAssistantProps) {
   const [currentStep, setCurrentStep] = useState(0);
   const [readAloudEnabled, setReadAloudEnabled] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const steps = instructions
     .split(/\n+/)
@@ -75,6 +80,9 @@ export function VoiceCookingAssistant({ instructions }: VoiceCookingAssistantPro
 
   if (steps.length === 0) return null;
 
+  // Only show TTS button after client mount to avoid hydration mismatch
+  const showReadAloud = mounted && ttsSupported;
+
   return (
     <div className="space-y-4">
       {/* Voice Control Bar */}
@@ -104,7 +112,7 @@ export function VoiceCookingAssistant({ instructions }: VoiceCookingAssistantPro
         </button>
 
         {/* Read Aloud Button */}
-        {ttsSupported && (
+        {showReadAloud && (
           <button
             onClick={toggleReadAloud}
             className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${

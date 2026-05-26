@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
-import { ChefHat, Plus, LayoutDashboard, Menu, X, LogIn, LogOut, User, Flame } from "lucide-react";
+import { ChefHat, Plus, LayoutDashboard, Menu, X, LogIn, LogOut, User, Flame, ShoppingCart, Settings } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 
@@ -15,6 +15,7 @@ export function Navigation() {
   const navItems = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/recipes/create", label: "Create Recipe", icon: Plus },
+    { href: "/shopping-list", label: "Shopping List", icon: ShoppingCart },
   ];
 
   const handleSignOut = async () => {
@@ -57,6 +58,18 @@ export function Navigation() {
           <div className="hidden md:flex items-center gap-4">
             {user ? (
               <div className="flex items-center gap-4">
+                <Link
+                  href="/profile"
+                  className={cn(
+                    "inline-flex items-center gap-2 text-sm font-medium transition-colors hover:text-orange-600",
+                    pathname === "/profile"
+                      ? "text-orange-600"
+                      : "text-muted-foreground"
+                  )}
+                >
+                  <Settings className="h-4 w-4" />
+                  Profile
+                </Link>
                 <span className="text-sm text-muted-foreground">
                   {user.user_metadata?.username || user.email}
                 </span>
@@ -130,6 +143,19 @@ export function Navigation() {
               <div className="border-t border-orange-100 pt-2 mt-2">
                 {user ? (
                   <>
+                    <Link
+                      href="/profile"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className={cn(
+                        "flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                        pathname === "/profile"
+                          ? "bg-orange-50 text-orange-600"
+                          : "text-muted-foreground hover:bg-orange-50 hover:text-orange-600"
+                      )}
+                    >
+                      <Settings className="h-4 w-4" />
+                      Profile
+                    </Link>
                     <span className="px-3 py-2 text-sm text-muted-foreground block">
                       {user.user_metadata?.username || user.email}
                     </span>

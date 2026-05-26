@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase-server";
-import type { RecipeWithIngredients } from "@/lib/types";
-import { Clock, Users, ChefHat, Flame, Heart } from "lucide-react";
+import type { RecipeWithIngredients, Tag } from "@/lib/types";
+import { Clock, Users, ChefHat, Flame, Heart, Search } from "lucide-react";
 import { RecipeSearch } from "@/components/recipe-search";
 import { FavoriteButton } from "@/components/favorite-button";
+import { TagDisplay } from "@/components/tag-display";
 
 export const metadata = {
   title: "Dashboard",
@@ -54,6 +55,113 @@ async function getCategories() {
   return data || [];
 }
 
+async function getRecipeTagsMap(recipeIds: string[]): Promise<Map<string, Tag[]>> {
+  if (recipeIds.length === 0) return new Map();
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("recipe_tags")
+    .select("recipe_id, tags(id, name, slug)")
+    .in("recipe_id", recipeIds);
+
+  const map = new Map<string, Tag[]>();
+  data?.forEach((rt: any) => {
+    const existing = map.get(rt.recipe_id) || [];
+    existing.push(rt.tags);
+    map.set(rt.recipe_id, existing);
+  });
+  return map;
+}
+
+async function searchRecipesDirect(
+  supabase: any,
+  query?: string,
+  ingredients?: string,
+  category?: string,
+  tags?: string
+): Promise<{ recipes: RecipeWithIngredients[]; error: string | null }> {
+  try {
+    let recipeQuery = supabase
+      .from("recipes")
+      .select(`
+        *,
+        ingredients (name, amount, unit),
+        profiles (username, avatar_url),
+        categories (id, name, slug)
+      `)
+      .order("created_at", { ascending: false });
+
+    if (query) {
+      const { data, error } = await recipeQuery
+        .or(`title.ilike.%${query}%,description.ilike.%${query}%`);
+      if (error) return { recipes: [], error: error.message };
+      return { recipes: data || [], error: null };
+    }
+
+    if (category) {
+      const { data: catData } = await supabase
+        .from("categories")
+        .select("id")
+        .eq("slug", category)
+        .maybeSingle();
+      if (catData) {
+        recipeQuery = recipeQuery.eq("category_id", catData.id);
+      }
+    }
+
+    if (ingredients) {
+      const ingredientNames = ingredients.split(",").map((s) => s.trim()).filter(Boolean);
+      if (ingredientNames.length > 0) {
+        let allRecipeIds: string[] = [];
+        for (const name of ingredientNames) {
+          const { data: matches } = await supabase
+            .from("ingredients")
+            .select("recipe_id")
+            .ilike("name", `%${name}%`);
+          if (matches) {
+            allRecipeIds = [...new Set([...allRecipeIds, ...matches.map((m: any) => m.recipe_id)])];
+          }
+        }
+        if (allRecipeIds.length > 0) {
+          recipeQuery = recipeQuery.in("id", allRecipeIds);
+        } else {
+          return { recipes: [], error: null };
+        }
+      }
+    }
+
+    if (tags) {
+      const tagSlugs = tags.split(",").map((s) => s.trim()).filter(Boolean);
+      if (tagSlugs.length > 0) {
+        const { data: tagMatches } = await supabase
+          .from("tags")
+          .select("id")
+          .in("slug", tagSlugs);
+        const tagIds = tagMatches?.map((t: any) => t.id) || [];
+        if (tagIds.length > 0) {
+          const { data: rtMatches } = await supabase
+            .from("recipe_tags")
+            .select("recipe_id")
+            .in("tag_id", tagIds);
+          const recipeIds = rtMatches?.map((rt: any) => rt.recipe_id) || [];
+          if (recipeIds.length > 0) {
+            recipeQuery = recipeQuery.in("id", recipeIds);
+          } else {
+            return { recipes: [], error: null };
+          }
+        } else {
+          return { recipes: [], error: null };
+        }
+      }
+    }
+
+    const { data, error } = await recipeQuery;
+    if (error) return { recipes: [], error: error.message };
+    return { recipes: data || [], error: null };
+  } catch (err) {
+    return { recipes: [], error: "Search error" };
+  }
+}
+
 export default async function DashboardPage({
   searchParams,
 }: {
@@ -69,9 +177,20 @@ export default async function DashboardPage({
   const userId = session.user.id;
   const params = await searchParams;
   const filter = typeof params.filter === "string" ? params.filter : "all";
+  const q = typeof params.q === "string" ? params.q : undefined;
+  const ingredients = typeof params.ingredients === "string" ? params.ingredients : undefined;
+  const category = typeof params.category === "string" ? params.category : undefined;
+  const tagsParam = typeof params.tags === "string" ? params.tags : undefined;
+
+  const hasSearchParams = q || ingredients || category || tagsParam;
 
   // Get recipes
-  const result = await getMyRecipes(userId);
+  let result: { recipes: RecipeWithIngredients[]; error: string | null };
+  if (hasSearchParams) {
+    result = await searchRecipesDirect(supabase, q, ingredients, category, tagsParam);
+  } else {
+    result = await getMyRecipes(userId);
+  }
 
   // Get favorites
   const favoriteIds = await getFavorites(userId);
@@ -80,12 +199,17 @@ export default async function DashboardPage({
   const dbCategories = await getCategories();
   const categoryMap = new Map(dbCategories.map((c) => [c.id, c.name]));
 
-  // Manually attach category names to recipes
+  // Get tags for all recipes
+  const recipeIds = result.recipes.map((r) => r.id);
+  const tagsMap = await getRecipeTagsMap(recipeIds);
+
+  // Manually attach category names and tags to recipes
   const recipes = result.recipes.map((recipe) => ({
     ...recipe,
     categories: recipe.category_id
       ? { name: categoryMap.get(recipe.category_id) || "Uncategorized" }
       : null,
+    tags: tagsMap.get(recipe.id) || [],
   }));
 
   // Filter recipes
@@ -93,6 +217,8 @@ export default async function DashboardPage({
     filter === "favorites"
       ? recipes.filter((r) => favoriteIds.includes(r.id))
       : recipes;
+
+  const isSearchActive = hasSearchParams && filter !== "favorites";
 
   return (
     <div className="space-y-8">
@@ -152,6 +278,17 @@ export default async function DashboardPage({
 
       <RecipeSearch categories={dbCategories} />
 
+      {isSearchActive && (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Search className="h-4 w-4 text-orange-400" />
+          <span>
+            Showing {filteredRecipes.length} result{filteredRecipes.length !== 1 ? "s" : ""}
+            {q ? ` for "${q}"` : ""}
+            {ingredients ? ` with ingredients "${ingredients}"` : ""}
+          </span>
+        </div>
+      )}
+
       {filteredRecipes.length === 0 && !result.error ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <div className="p-6 bg-orange-50 rounded-full mb-6">
@@ -162,14 +299,16 @@ export default async function DashboardPage({
             )}
           </div>
           <h2 className="text-xl font-semibold mb-2">
-            {filter === "favorites" ? "No favorites yet" : "No recipes yet"}
+            {filter === "favorites" ? "No favorites yet" : isSearchActive ? "No recipes found" : "No recipes yet"}
           </h2>
           <p className="text-muted-foreground mb-6">
             {filter === "favorites"
               ? "Heart recipes to save them here"
+              : isSearchActive
+              ? "Try adjusting your search or filters"
               : "Get started by creating your first recipe"}
           </p>
-          {filter !== "favorites" && (
+          {filter !== "favorites" && !isSearchActive && (
             <Link
               href="/recipes/create"
               className="inline-flex items-center gap-2 px-6 py-3 btn-gradient text-white rounded-xl font-medium"
@@ -229,6 +368,10 @@ function RecipeCard({ recipe, isFavorited }: { recipe: any; isFavorited: boolean
             <p className="text-sm text-muted-foreground line-clamp-2">
               {recipe.description}
             </p>
+          )}
+          {/* Tags */}
+          {recipe.tags && recipe.tags.length > 0 && (
+            <TagDisplay tags={recipe.tags} size="sm" />
           )}
           <div className="flex items-center gap-4 text-sm text-muted-foreground pt-2 border-t border-orange-100">
             <span className="flex items-center gap-1">

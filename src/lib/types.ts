@@ -14,6 +14,13 @@ export interface Category {
   created_at: string
 }
 
+export interface Tag {
+  id: string
+  name: string
+  slug: string
+  created_at?: string
+}
+
 export interface Recipe {
   id: string
   user_id: string
@@ -50,4 +57,23 @@ export interface RecipeWithIngredients extends Recipe {
   ingredients: Ingredient[]
   profiles: Profile | null
   categories: Category | null
+  tags?: Tag[]
+}
+
+export interface ShoppingListItem {
+  name: string
+  amount?: number
+  unit?: string
+  checked: boolean
+  recipe_id?: string
+  recipe_title?: string
+}
+
+export interface ShoppingList {
+  id: string
+  user_id: string
+  title: string
+  items: ShoppingListItem[]
+  created_at: string
+  updated_at: string
 }

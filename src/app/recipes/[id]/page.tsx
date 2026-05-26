@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase-server";
-import type { RecipeWithIngredients } from "@/lib/types";
+import type { RecipeWithIngredients, Tag } from "@/lib/types";
 import { RecipeModifier } from "@/components/recipe-modifier";
 import { VoiceCookingAssistant } from "@/components/voice-cooking-assistant";
-import { ArrowLeft, Clock, Flame, Dumbbell, Wheat as WheatIcon, Droplets, ChefHat } from "lucide-react";
+import { TagDisplay } from "@/components/tag-display";
+import { AddToShoppingList } from "@/components/add-to-shopping-list";
+import { ArrowLeft, Clock, Flame, Dumbbell, Wheat as WheatIcon, Droplets, ChefHat, Tag as TagIcon } from "lucide-react";
 
 interface RecipePageProps {
   params: Promise<{
@@ -31,6 +33,17 @@ async function getRecipe(id: string): Promise<RecipeWithIngredients | null> {
   return recipe;
 }
 
+async function getRecipeTags(recipeId: string): Promise<Tag[]> {
+  const supabase = await createClient();
+  const { data: recipeTags, error } = await supabase
+    .from("recipe_tags")
+    .select("tags(id, name, slug)")
+    .eq("recipe_id", recipeId);
+
+  if (error || !recipeTags) return [];
+  return recipeTags.map((rt: any) => rt.tags);
+}
+
 export async function generateMetadata({ params }: RecipePageProps) {
   const { id } = await params;
   const recipe = await getRecipe(id);
@@ -49,6 +62,7 @@ export default async function RecipePage({ params }: RecipePageProps) {
     notFound();
   }
 
+  const tags = await getRecipeTags(id);
   const macros = recipe.macros || {};
 
   return (
@@ -96,6 +110,14 @@ export default async function RecipePage({ params }: RecipePageProps) {
           <p className="text-lg text-muted-foreground leading-relaxed">
             {recipe.description}
           </p>
+        )}
+
+        {/* Tags */}
+        {tags.length > 0 && (
+          <div className="flex items-center gap-2">
+            <TagIcon className="h-4 w-4 text-orange-400" />
+            <TagDisplay tags={tags} size="md" clickable />
+          </div>
         )}
       </div>
 
@@ -146,10 +168,17 @@ export default async function RecipePage({ params }: RecipePageProps) {
         </div>
       )}
 
-      {/* Ingredients */}
+      {/* Ingredients with Add to Shopping List */}
       {recipe.ingredients && recipe.ingredients.length > 0 && (
         <div className="space-y-4">
-          <h2 className="text-2xl font-bold gradient-text">Ingredients</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-bold gradient-text">Ingredients</h2>
+            <AddToShoppingList
+              recipeId={recipe.id}
+              recipeTitle={recipe.title}
+              ingredients={recipe.ingredients}
+            />
+          </div>
           <ul className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {recipe.ingredients.map((ingredient) => (
               <li

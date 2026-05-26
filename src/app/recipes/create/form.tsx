@@ -6,7 +6,8 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase-client";
 import { IngredientScanner } from "@/components/ingredient-scanner";
 import { ImageUpload } from "@/components/image-upload";
-import { ArrowLeft, Plus, Trash2, ChefHat, Clock, Users, Flame } from "lucide-react";
+import { TagInput } from "@/components/tag-input";
+import { ArrowLeft, Plus, Trash2, ChefHat, Clock, Users, Flame, Tag } from "lucide-react";
 
 const supabase = createClient();
 
@@ -37,6 +38,8 @@ export default function CreateRecipeForm({ userId }: { userId: string }) {
   const [ingredients, setIngredients] = useState<IngredientInput[]>([
     { name: "", amount: "", unit: "" },
   ]);
+  const [recipeId, setRecipeId] = useState<string | null>(null);
+  const [tags, setTags] = useState<{ id: string; name: string; slug: string }[]>([]);
 
   useEffect(() => {
     async function loadCategories() {
@@ -119,6 +122,7 @@ export default function CreateRecipeForm({ userId }: { userId: string }) {
         if (ingredientsError) throw ingredientsError;
       }
 
+      setRecipeId(recipe.id);
       router.push(`/recipes/${recipe.id}`);
     } catch (error) {
       console.error("Error creating recipe:", error);
@@ -266,6 +270,23 @@ export default function CreateRecipeForm({ userId }: { userId: string }) {
             </div>
           </div>
         </div>
+
+        {/* Tags */}
+        {recipeId ? (
+          <div className="p-6 bg-white rounded-xl border border-orange-100 space-y-4">
+            <h2 className="text-xl font-semibold gradient-text flex items-center gap-2">
+              <Tag className="h-5 w-5" />
+              Tags
+            </h2>
+            <TagInput recipeId={recipeId} initialTags={tags} onTagsChange={setTags} />
+          </div>
+        ) : (
+          <div className="p-6 bg-gradient-to-r from-orange-50/50 to-amber-50/50 rounded-xl border border-orange-100">
+            <p className="text-sm text-muted-foreground">
+              Tags can be added after creating the recipe.
+            </p>
+          </div>
+        )}
 
         {/* AI Ingredient Scanner */}
         <div className="p-6 bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl border border-orange-100 space-y-4">
