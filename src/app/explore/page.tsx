@@ -14,6 +14,7 @@ import {
   ArrowLeft,
   TrendingUp,
   Calendar,
+  Lock,
 } from "lucide-react";
 
 interface PublicRecipe {
@@ -139,21 +140,32 @@ export default function ExplorePage() {
             <Loader2 className="h-8 w-8 text-orange-500 animate-spin" />
           </div>
         ) : recipes.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
+          <div className="flex flex-col items-center justify-center py-20 text-center max-w-md mx-auto">
             <div className="p-6 bg-orange-50 rounded-full mb-6">
               <ChefHat className="h-12 w-12 text-orange-400" />
             </div>
             <h2 className="text-xl font-semibold mb-2">
               No public recipes yet
             </h2>
-            <p className="text-muted-foreground mb-6">
-              Be the first to share a recipe with the community!
+            <p className="text-muted-foreground mb-2">
+              Recipes are private by default. Toggle them to public to share with the community.
             </p>
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6 text-left w-full">
+              <p className="text-sm text-blue-700">
+                <strong>How to share:</strong>
+              </p>
+              <ol className="text-sm text-blue-600 mt-1 list-decimal list-inside space-y-1">
+                <li>Go to your <Link href="/dashboard" className="underline hover:text-blue-800">Dashboard</Link></li>
+                <li>Open any recipe you created</li>
+                <li>Click the <Lock className="h-3 w-3 inline" /> <strong>Private</strong> badge</li>
+                <li>It becomes <strong>Public</strong> and appears here</li>
+              </ol>
+            </div>
             <Link
-              href="/recipes/create"
+              href="/dashboard"
               className="inline-flex items-center gap-2 px-6 py-3 btn-gradient text-white rounded-xl font-medium"
             >
-              Create Recipe
+              Go to My Recipes
               <ArrowRight className="h-4 w-4" />
             </Link>
           </div>

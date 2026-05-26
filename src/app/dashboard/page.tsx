@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase-server";
 import type { RecipeWithIngredients, Tag } from "@/lib/types";
-import { Clock, Users, ChefHat, Flame, Heart, Search, Star } from "lucide-react";
+import { Clock, Users, ChefHat, Flame, Heart, Search, Star, Globe, Lock } from "lucide-react";
 import { RecipeSearch } from "@/components/recipe-search";
 import { FavoriteButton } from "@/components/favorite-button";
 import { TagDisplay } from "@/components/tag-display";
@@ -307,6 +307,23 @@ export default async function DashboardPage({
           Create Recipe
         </Link>
       </div>
+
+      {/* Public Sharing Tip */}
+      {recipes.length > 0 && (
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4 flex items-start gap-3">
+          <Globe className="h-5 w-5 text-blue-500 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-medium text-blue-800">
+              Share your recipes with the community
+            </p>
+            <p className="text-sm text-blue-600 mt-1">
+              Your recipes are <strong>private by default</strong>. Open any recipe and click the{" "}
+              <Lock className="h-3 w-3 inline" /> Private badge to make it public. Public recipes appear on the{" "}
+              <Link href="/explore" className="underline hover:text-blue-800">Explore</Link> page.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Filter Tabs */}
       <div className="flex gap-2 flex-wrap">
