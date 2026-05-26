@@ -5,8 +5,9 @@ import Link from "next/link";
 import { ChefHat, ArrowRight } from "lucide-react";
 
 // Swappable video source - replace this URL with your AI-generated video later
+// Using Pixabay CDN which allows hotlinking
 const HERO_VIDEO_URL =
-  "https://videos.pexels.com/video-files/4253350/4253350-hd_1920_1080_30fps.mp4";
+  "https://cdn.pixabay.com/video/2022/03/18/110253-693130522_large.mp4";
 
 // Poster image shown while video loads (and on mobile)
 const HERO_POSTER_URL =
