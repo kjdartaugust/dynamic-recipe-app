@@ -39,6 +39,7 @@ export interface Recipe {
   cook_time: number | null
   servings: number | null
   difficulty: string | null
+  is_public: boolean
   created_at: string
   updated_at: string
 }

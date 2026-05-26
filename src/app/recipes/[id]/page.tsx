@@ -7,6 +7,7 @@ import { VoiceCookingAssistant } from "@/components/voice-cooking-assistant";
 import { TagDisplay } from "@/components/tag-display";
 import { AddToShoppingList } from "@/components/add-to-shopping-list";
 import { RecipeRatings } from "@/components/recipe-ratings";
+import { VisibilityToggle } from "@/components/visibility-toggle";
 import { ArrowLeft, Clock, Flame, Dumbbell, Wheat as WheatIcon, Droplets, ChefHat, Tag as TagIcon, Star } from "lucide-react";
 
 interface RecipePageProps {
@@ -66,6 +67,11 @@ export default async function RecipePage({ params }: RecipePageProps) {
   const tags = await getRecipeTags(id);
   const macros = recipe.macros || {};
 
+  // Check if current user is the owner
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const isOwner = user?.id === recipe.user_id;
+
   return (
     <div className="max-w-4xl mx-auto space-y-8">
       {/* Back Button */}
@@ -113,13 +119,20 @@ export default async function RecipePage({ params }: RecipePageProps) {
           </p>
         )}
 
-        {/* Tags */}
-        {tags.length > 0 && (
-          <div className="flex items-center gap-2">
-            <TagIcon className="h-4 w-4 text-orange-400" />
-            <TagDisplay tags={tags} size="md" clickable />
-          </div>
-        )}
+        {/* Tags & Visibility */}
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          {tags.length > 0 && (
+            <div className="flex items-center gap-2">
+              <TagIcon className="h-4 w-4 text-orange-400" />
+              <TagDisplay tags={tags} size="md" clickable />
+            </div>
+          )}
+          <VisibilityToggle
+            recipeId={recipe.id}
+            initialIsPublic={recipe.is_public || false}
+            isOwner={isOwner}
+          />
+        </div>
       </div>
 
       {/* AI Recipe Modifier */}
