@@ -22,10 +22,9 @@ export function Navigation() {
   }, [user]);
 
   const navItems = [
-    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { href: "/fridge", label: "My Fridge", icon: Refrigerator },
+    { href: "/dashboard", label: "My Recipes", icon: LayoutDashboard },
+    { href: "/fridge", label: "My Kitchen", icon: Refrigerator },
     { href: "/explore", label: "Explore", icon: Globe },
-    { href: "/recipes/create", label: "Create Recipe", icon: Plus },
     { href: "/meal-plan", label: "Meal Plan", icon: Calendar },
     { href: "/shopping-list", label: "Shopping List", icon: ShoppingCart },
     { href: "/stats", label: "Stats", icon: BarChart3 },
