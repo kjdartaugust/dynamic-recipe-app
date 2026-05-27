@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Navigation } from "@/components/navigation";
 import { AuthProvider } from "@/contexts/auth-context";
+import { ThemeProvider } from "@/contexts/theme-context";
 import { RecipeChatbot } from "@/components/recipe-chatbot";
 import { ServiceWorkerRegistration } from "@/components/service-worker-registration";
 import { PwaInstallPrompt } from "@/components/pwa-install-prompt";
@@ -75,19 +76,21 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen bg-background text-foreground`}
       >
-        <AuthProvider>
+        <ThemeProvider>
+          <AuthProvider>
           <Navigation />
           <main className="container mx-auto px-4 py-8 max-w-7xl">
             {children}
           </main>
           <RecipeChatbot />
-         <ServiceWorkerRegistration />
+          <ServiceWorkerRegistration />
           <PwaInstallPrompt />
         </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );
