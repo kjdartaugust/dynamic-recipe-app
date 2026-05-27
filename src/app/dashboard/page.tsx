@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase-server";
 import type { RecipeWithIngredients, Tag } from "@/lib/types";
-import { Clock, Users, ChefHat, Flame, Heart, Search, Star, Globe, Lock } from "lucide-react";
+import { Clock, Users, ChefHat, Flame, Heart, Search, Star, Globe, Lock, AlertTriangle } from "lucide-react";
 import { RecipeSearch } from "@/components/recipe-search";
 import { FavoriteButton } from "@/components/favorite-button";
 import { TagDisplay } from "@/components/tag-display";
@@ -96,6 +96,29 @@ async function getRecipeRatingsMap(recipeIds: string[]): Promise<Map<string, { a
   });
 
   return map;
+}
+
+async function getExpiringItems(userId: string) {
+  const supabase = await createClient();
+  const threeDaysFromNow = new Date();
+  threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3);
+  const threeDaysStr = threeDaysFromNow.toISOString().split("T")[0];
+  const today = new Date().toISOString().split("T")[0];
+
+  const { data, error } = await supabase
+    .from("fridge_items")
+    .select("name, expiry_date")
+    .eq("user_id", userId)
+    .lte("expiry_date", threeDaysStr)
+    .gte("expiry_date", today)
+    .order("expiry_date", { ascending: true })
+    .limit(5);
+
+  if (error) {
+    console.error("Failed to fetch expiring items:", error);
+    return [];
+  }
+  return data || [];
 }
 
 async function searchRecipesDirect(
@@ -223,6 +246,9 @@ export default async function DashboardPage({
   // Get favorites
   const favoriteIds = await getFavorites(userId);
 
+  // Get expiring fridge items
+  const expiringItems = await getExpiringItems(userId);
+
   // Get categories separately for matching
   const dbCategories = await getCategories();
   const categoryMap = new Map(dbCategories.map((c) => [c.id, c.name]));
@@ -289,6 +315,28 @@ export default async function DashboardPage({
             Query Error
           </div>
           <p className="text-sm text-red-700 mt-1">{result.error}</p>
+        </div>
+      )}
+
+      {expiringItems.length > 0 && (
+        <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-orange-200 rounded-xl p-4">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="h-5 w-5 text-orange-600 mt-0.5 flex-shrink-0" />
+            <div className="flex-1">
+              <p className="font-semibold text-orange-800">
+                {expiringItems.length} item{expiringItems.length > 1 ? "s" : ""} expiring soon
+              </p>
+              <p className="text-sm text-orange-700 mt-1">
+                {expiringItems.map((item) => item.name).join(", ")} — use them before they go to waste!
+              </p>
+              <Link
+                href="/fridge"
+                className="inline-flex items-center gap-1 text-sm font-medium text-orange-700 hover:text-orange-900 mt-2 underline underline-offset-2"
+              >
+                View My Fridge →
+              </Link>
+            </div>
+          </div>
         </div>
       )}
 

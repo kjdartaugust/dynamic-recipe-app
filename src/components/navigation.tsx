@@ -4,13 +4,22 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
 import { ChefHat, Plus, LayoutDashboard, Menu, X, LogIn, LogOut, User, Flame, ShoppingCart, Settings, Calendar, Globe, Refrigerator, BarChart3 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 
 export function Navigation() {
   const pathname = usePathname();
   const { user, signOut } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [expiringCount, setExpiringCount] = useState(0);
+
+  useEffect(() => {
+    if (!user) return;
+    fetch("/api/fridge/expiring-count")
+      .then((r) => r.json())
+      .then((d) => setExpiringCount(d.count || 0))
+      .catch(() => {});
+  }, [user]);
 
   const navItems = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -46,7 +55,7 @@ export function Navigation() {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "flex items-center gap-2 text-sm font-medium transition-colors hover:text-orange-600",
+                  "flex items-center gap-2 text-sm font-medium transition-colors hover:text-orange-600 relative",
                   pathname === item.href
                     ? "text-orange-600"
                     : "text-muted-foreground"
@@ -54,6 +63,11 @@ export function Navigation() {
               >
                 <item.icon className="h-4 w-4" />
                 {item.label}
+                {item.href === "/fridge" && expiringCount > 0 && (
+                  <span className="absolute -top-2 -right-3 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                    {expiringCount}
+                  </span>
+                )}
               </Link>
             ))}
           </nav>
@@ -142,6 +156,11 @@ export function Navigation() {
                 >
                   <item.icon className="h-4 w-4" />
                   {item.label}
+                  {item.href === "/fridge" && expiringCount > 0 && (
+                    <span className="ml-auto bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                      {expiringCount}
+                    </span>
+                  )}
                 </Link>
               ))}
               <div className="border-t border-orange-100 pt-2 mt-2">
