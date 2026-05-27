@@ -51,9 +51,16 @@ export function Navigation() {
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "visible") fetchExpiringCount();
     });
+    // Listen for fridge changes from other pages
+    const onFridgeUpdate = (e: any) => {
+      const count = e.detail?.count;
+      if (typeof count === "number") setExpiringCount(count);
+    };
+    window.addEventListener("fridge-updated", onFridgeUpdate);
     return () => {
       clearInterval(interval);
       window.removeEventListener("focus", onFocus);
+      window.removeEventListener("fridge-updated", onFridgeUpdate);
     };
   }, [user]);
 

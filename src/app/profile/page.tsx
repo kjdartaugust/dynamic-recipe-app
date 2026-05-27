@@ -232,52 +232,46 @@ export default function ProfilePage() {
 
   const handleTogglePush = async () => {
     setError("");
+    setMessage("");
 
-    // Check if push is supported
     if (typeof window === "undefined" || !("serviceWorker" in navigator) || !("PushManager" in window)) {
       setError("Push notifications are not supported on this browser.");
       return;
     }
 
-    // Ensure service worker is registered before attempting push
-    let registration: ServiceWorkerRegistration;
     try {
-      registration = await navigator.serviceWorker.ready;
-    } catch {
-      setError("Service worker not ready. Please refresh the page and try again.");
-      return;
-    }
+      const registration = await navigator.serviceWorker.ready;
 
-    if (pushEnabled && pushSubscription) {
-      // Unsubscribe
-      try {
-        await pushSubscription.unsubscribe();
-        await fetch("/api/notifications/push/subscribe", {
-          method: "DELETE",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ endpoint: pushSubscription.endpoint }),
-        });
-        setPushSubscription(null);
-        setPushEnabled(false);
-        setMessage("Push notifications disabled");
+      // ALWAYS check actual browser state first — never trust React state
+      const currentSub = await registration.pushManager.getSubscription();
 
-        // Also update profile flag
-        await fetch("/api/profile", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ push_notifications: false }),
-        });
-      } catch (err: any) {
-        setError(err.message || "Failed to disable push notifications");
+      if (currentSub) {
+        // Actually subscribed — unsubscribe
+        try {
+          await currentSub.unsubscribe();
+          await fetch("/api/notifications/push/subscribe", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ endpoint: currentSub.endpoint }),
+          });
+          setPushSubscription(null);
+          setPushEnabled(false);
+          setMessage("Push notifications disabled");
+          await fetch("/api/profile", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ push_notifications: false }),
+          });
+        } catch (err: any) {
+          setError(err.message || "Failed to disable");
+        }
+        return;
       }
-      return;
-    }
 
-    // Subscribe
-    try {
+      // Not subscribed — subscribe
       const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
       if (!vapidKey || vapidKey === "your-vapid-public-key") {
-        setError("Push notifications require VAPID keys. Please add NEXT_PUBLIC_VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, and VAPID_SUBJECT to your Vercel environment variables.");
+        setError("Push notifications require VAPID keys to be configured on the server.");
         return;
       }
 
@@ -295,19 +289,16 @@ export default function ProfilePage() {
       setPushEnabled(true);
       setMessage("Push notifications enabled");
 
-      // Also update profile flag
       await fetch("/api/profile", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ push_notifications: true }),
       });
     } catch (err: any) {
-      if (err.name === "NotAllowedError") {
-        setError("Push notification permission denied. Check your browser settings.");
-      } else if (err.message?.includes("unsubscribe")) {
-        setError("Failed to remove old subscription. Please reload the page.");
+      if (err.name === "NotAllowedError" || err.name === "NotSupportedError") {
+        setError("Permission denied. Check browser settings > Notifications > Allow.");
       } else {
-        setError(err.message || "Failed to enable push notifications");
+        setError(err.message || "Failed to toggle push notifications");
       }
     }
   };

@@ -106,6 +106,14 @@ export default function KitchenHubPage() {
       const data = await response.json();
       if (response.ok) {
         setItems(data.items);
+        // Immediately update navigation badge
+        const countRes = await fetch("/api/fridge/expiring-count");
+        const countData = await countRes.json();
+        if (typeof countData.count === "number") {
+          window.dispatchEvent(
+            new CustomEvent("fridge-updated", { detail: { count: countData.count } })
+          );
+        }
       }
     } finally {
       setIsLoadingItems(false);
