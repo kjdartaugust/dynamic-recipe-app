@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
-import { ChefHat, Plus, LayoutDashboard, Menu, X, LogIn, LogOut, User, Flame, ShoppingCart, Settings, Calendar, Globe, Refrigerator } from "lucide-react";
+import { ChefHat, Plus, LayoutDashboard, Menu, X, LogIn, LogOut, User, Flame, ShoppingCart, Settings, Calendar, Globe, Refrigerator, BarChart3 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 
@@ -19,6 +19,7 @@ export function Navigation() {
     { href: "/recipes/create", label: "Create Recipe", icon: Plus },
     { href: "/meal-plan", label: "Meal Plan", icon: Calendar },
     { href: "/shopping-list", label: "Shopping List", icon: ShoppingCart },
+    { href: "/stats", label: "Stats", icon: BarChart3 },
   ];
 
   const handleSignOut = async () => {

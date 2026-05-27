@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase-server";
 import type { RecipeWithIngredients, Tag } from "@/lib/types";
 import { RecipeModifier } from "@/components/recipe-modifier";
-import { VoiceCookingAssistant } from "@/components/voice-cooking-assistant";
 import { TagDisplay } from "@/components/tag-display";
 import { AddToShoppingList } from "@/components/add-to-shopping-list";
 import { RecipeRatings } from "@/components/recipe-ratings";
@@ -211,11 +210,8 @@ export default async function RecipePage({ params }: RecipePageProps) {
         </div>
       )}
 
-      {/* Instructions with Voice Control */}
-      <div className="space-y-4">
-        <h2 className="text-2xl font-bold gradient-text">Instructions</h2>
-        <VoiceCookingAssistant instructions={recipe.instructions} />
-      </div>
+      {/* Instructions */}
+      <RecipeInstructions instructions={recipe.instructions} />
 
       {/* Ratings & Reviews */}
       <div className="space-y-4">
