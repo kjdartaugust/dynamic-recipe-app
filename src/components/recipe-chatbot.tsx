@@ -243,20 +243,6 @@ export function RecipeChatbot({ recipeContext }: RecipeChatbotProps) {
               }
             </p>
           </div>
-              {isGuest && (
-                <span className="text-[10px] font-bold px-2 py-1 bg-white/20 rounded-full text-white/90">
-                  {Math.max(0, MAX_GUEST_MESSAGES - messages.filter((m) => m.role === "user").length)} left
-                </span>
-              )}
-            </div>
-            <p className="text-xs text-white/80 mt-1 flex items-center gap-1">
-              <Refrigerator className="h-3 w-3" />
-              {fridgeItems.length > 0 
-                ? `Knows ${fridgeItems.length} item${fridgeItems.length > 1 ? "s" : ""} in your fridge`
-                : "Connect your fridge for smarter suggestions"
-              }
-            </p>
-          </div>
 
           {/* Messages */}
           <div className="flex-1 overflow-y-auto p-4 space-y-4">

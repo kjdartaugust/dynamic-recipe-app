@@ -23,4 +23,3 @@ CREATE POLICY "Users can manage own push subscriptions"
 
 -- Grant permissions
 GRANT ALL ON public.push_subscriptions TO authenticated;
-GRANT USAGE ON SEQUENCE push_subscriptions_id_seq TO authenticated;
