@@ -18,6 +18,7 @@ import {
   BarChart3,
   ShoppingCart,
   ChevronDown,
+  Folder,
 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
@@ -78,6 +79,7 @@ export function Navigation() {
   const navItems = [
     { href: "/fridge", label: "My Kitchen", icon: Refrigerator },
     { href: "/dashboard", label: "My Recipes", icon: LayoutDashboard },
+    { href: "/collections", label: "Collections", icon: Folder },
     { href: "/explore", label: "Explore", icon: Globe },
     { href: "/meal-plan", label: "Meal Plan", icon: Calendar },
   ];

@@ -10,6 +10,7 @@ import { VisibilityToggle } from "@/components/visibility-toggle";
 import { RecipeInstructions } from "@/components/recipe-instructions";
 import { RecipeCacheWrapper } from "@/components/recipe-cache-wrapper";
 import { ArrowLeft, Clock, Flame, Dumbbell, Wheat as WheatIcon, Droplets, Tag as TagIcon, Star } from "lucide-react";
+import { AddToCollectionButton } from "@/components/add-to-collection";
 
 interface RecipePageProps {
   params: Promise<{
