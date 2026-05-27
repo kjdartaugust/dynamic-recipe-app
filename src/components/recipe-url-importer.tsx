@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Link2, X, Loader2, Check, AlertTriangle, ExternalLink } from "lucide-react";
+import { Link2, FileText, X, Loader2, Check, AlertTriangle } from "lucide-react";
 
 interface ImportedRecipe {
   title: string;
@@ -20,23 +20,30 @@ interface RecipeUrlImporterProps {
   onClose: () => void;
 }
 
+type Mode = "url" | "text";
+type Step = "input" | "fetching" | "preview" | "saving";
+
 export function RecipeUrlImporter({ onClose }: RecipeUrlImporterProps) {
   const router = useRouter();
+  const [mode, setMode] = useState<Mode>("url");
   const [url, setUrl] = useState("");
-  const [step, setStep] = useState<"input" | "fetching" | "preview" | "saving">("input");
+  const [recipeText, setRecipeText] = useState("");
+  const [step, setStep] = useState<Step>("input");
   const [recipe, setRecipe] = useState<ImportedRecipe | null>(null);
   const [error, setError] = useState("");
 
   const handleFetch = async () => {
-    if (!url.trim()) return;
     setStep("fetching");
     setError("");
 
     try {
-      const response = await fetch("/api/ai/import-url", {
+      const endpoint = mode === "url" ? "/api/ai/import-url" : "/api/ai/import-text";
+      const body = mode === "url" ? { url: url.trim() } : { text: recipeText.trim() };
+
+      const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: url.trim() }),
+        body: JSON.stringify(body),
       });
 
       const data = await response.json();
@@ -48,7 +55,7 @@ export function RecipeUrlImporter({ onClose }: RecipeUrlImporterProps) {
       setRecipe(data.recipe);
       setStep("preview");
     } catch (err: any) {
-      setError(err.message || "Failed to fetch recipe");
+      setError(err.message || "Failed to import recipe");
       setStep("input");
     }
   };
@@ -105,7 +112,7 @@ export function RecipeUrlImporter({ onClose }: RecipeUrlImporterProps) {
             <div className="p-1.5 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-lg text-white">
               <Link2 className="h-4 w-4" />
             </div>
-            <h2 className="font-semibold text-lg">Import from URL</h2>
+            <h2 className="font-semibold text-lg">Import Recipe</h2>
           </div>
           <button
             onClick={onClose}
@@ -126,43 +133,102 @@ export function RecipeUrlImporter({ onClose }: RecipeUrlImporterProps) {
                 </div>
               )}
 
-              <div>
-                <p className="text-sm text-muted-foreground mb-3">
-                  Paste a recipe URL from any website. AI will extract the title, ingredients, and instructions.
-                </p>
-                <div className="flex gap-2">
-                  <input
-                    type="url"
-                    value={url}
-                    onChange={(e) => setUrl(e.target.value)}
-                    placeholder="https://example.com/recipe..."
-                    className="flex-1 px-4 py-3 border border-orange-200 rounded-xl bg-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
-                    onKeyDown={(e) => e.key === "Enter" && handleFetch()}
+              {/* Mode Toggle */}
+              <div className="flex gap-1 p-1 bg-orange-50 rounded-xl">
+                <button
+                  onClick={() => { setMode("url"); setError(""); }}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                    mode === "url" ? "bg-white shadow-sm text-orange-700" : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Link2 className="h-4 w-4" />
+                  From URL
+                </button>
+                <button
+                  onClick={() => { setMode("text"); setError(""); }}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                    mode === "text" ? "bg-white shadow-sm text-orange-700" : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <FileText className="h-4 w-4" />
+                  Paste Text
+                </button>
+              </div>
+
+              {mode === "url" ? (
+                <div className="space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    Paste a recipe URL from any website. AI will extract the title, ingredients, and instructions.
+                  </p>
+                  <div className="flex gap-2">
+                    <input
+                      type="url"
+                      value={url}
+                      onChange={(e) => setUrl(e.target.value)}
+                      placeholder="https://example.com/recipe..."
+                      className="flex-1 px-4 py-3 border border-orange-200 rounded-xl bg-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                      onKeyDown={(e) => e.key === "Enter" && handleFetch()}
+                    />
+                    <button
+                      onClick={handleFetch}
+                      disabled={!url.trim()}
+                      className="px-4 py-3 btn-gradient text-white rounded-xl font-medium disabled:opacity-50 flex-shrink-0"
+                    >
+                      Fetch
+                    </button>
+                  </div>
+                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
+                    <p className="text-xs text-blue-700 font-medium mb-1">
+                      Note: Some recipe sites (AllRecipes, NYT Cooking) block automated scraping.
+                    </p>
+                    <p className="text-xs text-blue-600">
+                      If a URL fails, switch to "Paste Text" and paste the recipe directly.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    Paste the full recipe text here. AI will automatically extract ingredients, steps, and timing.
+                  </p>
+                  <textarea
+                    value={recipeText}
+                    onChange={(e) => setRecipeText(e.target.value)}
+                    placeholder="Paste recipe text here...
+
+Example:
+Creamy Mushroom Risotto
+Prep: 10 min | Cook: 35 min | Serves: 4
+
+Ingredients:
+- 1.5 cups arborio rice
+- 4 cups vegetable broth, warmed
+- 1 lb mixed mushrooms, sliced
+- 1/2 cup dry white wine
+
+Instructions:
+1. Sauté mushrooms in olive oil...
+2. Add rice and toast for 2 minutes..."
+                    rows={12}
+                    className="w-full px-4 py-3 border border-orange-200 rounded-xl bg-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 resize-none"
                   />
                   <button
                     onClick={handleFetch}
-                    disabled={!url.trim()}
-                    className="px-4 py-3 btn-gradient text-white rounded-xl font-medium disabled:opacity-50 flex-shrink-0"
+                    disabled={!recipeText.trim()}
+                    className="w-full px-4 py-3 btn-gradient text-white rounded-xl font-medium disabled:opacity-50"
                   >
-                    Fetch
+                    Extract Recipe
                   </button>
                 </div>
-              </div>
-
-              <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
-                <p className="text-xs text-blue-700 font-medium mb-1">Supported sites:</p>
-                <p className="text-xs text-blue-600">
-                  AllRecipes, Food Network, Bon Appétit, NYT Cooking, BBC Good Food, and any recipe blog.
-                </p>
-              </div>
+              )}
             </div>
           )}
 
           {step === "fetching" && (
             <div className="flex flex-col items-center justify-center py-12">
               <Loader2 className="h-10 w-10 text-orange-500 animate-spin mb-4" />
-              <p className="font-medium text-foreground">Fetching recipe...</p>
-              <p className="text-sm text-muted-foreground mt-1">Extracting ingredients and instructions</p>
+              <p className="font-medium text-foreground">Extracting recipe...</p>
+              <p className="text-sm text-muted-foreground mt-1">Reading ingredients and instructions</p>
             </div>
           )}
 
