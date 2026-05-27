@@ -231,8 +231,8 @@ export default function ProfilePage() {
     } else {
       try {
         const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-        if (!vapidKey) {
-          setError("Push notifications are not configured. Contact the admin to set up VAPID keys.");
+        if (!vapidKey || vapidKey === "your-vapid-public-key") {
+          setError("Push notifications require VAPID keys. Please add NEXT_PUBLIC_VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, and VAPID_SUBJECT to your Vercel environment variables. See SETUP_GUIDE.md for instructions.");
           return;
         }
         const registration = await navigator.serviceWorker.ready;
