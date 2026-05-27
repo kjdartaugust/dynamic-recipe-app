@@ -100,8 +100,14 @@ CRON_SECRET=
 
 ## Notification System
 1. Resend Email (100/day): Daily at 9AM UTC, sends expiry alerts with gradient HTML templates
-2. Web Push: Browser push notifications with service worker
+2. Web Push: Browser push notifications with service worker (fixed VAPID key base64url decoding)
 3. In-app: Fridge nav badge + dashboard expiry banner
+
+## PWA & Offline Support
+- **Installable**: Add to home screen via custom install prompt (Chrome/Android)
+- **Offline Recipe Viewing**: View cached recipes without internet (up to 50 most recent)
+- **Offline Shopping List**: Add/check/remove items offline, auto-sync when reconnecting
+- **Service Worker**: Cache-first for static assets, stale-while-revalidate for API calls
 
 ## Critical Development Notes
 1. **Migration files must be manually run** in Supabase SQL Editor. Auto-creation via SQL does NOT grant authenticated role permissions.
@@ -115,3 +121,19 @@ CRON_SECRET=
 ## Project Status
 All features built and deployed. Vercel auto-deploys on every push to `main`.
 Build: `next build` passes with zero TypeScript errors.
+
+### Recently Completed (Option D: PWA & Offline Support)
+- Enhanced service worker with 3-tier caching (static, API, images)
+- PWA install prompt with dismiss memory
+- Offline IndexedDB cache for recipes (up to 50) and shopping list
+- Shopping list offline mode with auto-sync on reconnect
+- Recipe auto-cache when viewed for offline cooking
+- Updated webmanifest with proper PWA config
+
+### Recently Completed (Option D: PWA & Offline Support)
+- Enhanced service worker with 3-tier caching (static, API, images)
+- PWA install prompt with dismiss memory
+- Offline IndexedDB cache for recipes (up to 50) and shopping list
+- Shopping list offline mode with auto-sync on reconnect
+- Recipe auto-cache when viewed for offline cooking
+- Updated webmanifest with proper PWA config

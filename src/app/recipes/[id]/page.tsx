@@ -8,6 +8,7 @@ import { AddToShoppingList } from "@/components/add-to-shopping-list";
 import { RecipeRatings } from "@/components/recipe-ratings";
 import { VisibilityToggle } from "@/components/visibility-toggle";
 import { RecipeInstructions } from "@/components/recipe-instructions";
+import { RecipeCacheWrapper } from "@/components/recipe-cache-wrapper";
 import { ArrowLeft, Clock, Flame, Dumbbell, Wheat as WheatIcon, Droplets, Tag as TagIcon, Star } from "lucide-react";
 
 interface RecipePageProps {
@@ -74,6 +75,20 @@ export default async function RecipePage({ params }: RecipePageProps) {
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
+      {/* Auto-cache recipe for offline view */}
+      <RecipeCacheWrapper recipe={{
+        id: recipe.id,
+        title: recipe.title,
+        description: recipe.description || "",
+        instructions: recipe.instructions || "",
+        ingredients: recipe.ingredients || [],
+        prep_time: recipe.prep_time || 0,
+        cook_time: recipe.cook_time || 0,
+        servings: recipe.servings || 1,
+        difficulty: recipe.difficulty || "Easy",
+        image_url: recipe.image_url || undefined,
+      }} />
+
       {/* Back Button */}
       <Link
         href="/dashboard"

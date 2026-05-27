@@ -5,6 +5,7 @@ import { Navigation } from "@/components/navigation";
 import { AuthProvider } from "@/contexts/auth-context";
 import { RecipeChatbot } from "@/components/recipe-chatbot";
 import { ServiceWorkerRegistration } from "@/components/service-worker-registration";
+import { PwaInstallPrompt } from "@/components/pwa-install-prompt";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -84,7 +85,8 @@ export default function RootLayout({
             {children}
           </main>
           <RecipeChatbot />
-          <ServiceWorkerRegistration />
+         <ServiceWorkerRegistration />
+          <PwaInstallPrompt />
         </AuthProvider>
       </body>
     </html>

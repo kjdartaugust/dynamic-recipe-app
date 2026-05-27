@@ -1,16 +1,25 @@
 {
-  "name": "Dynamic Recipe App",
-  "short_name": "RecipeApp",
-  "description": "AI-powered recipe management. Scan ingredients, modify recipes, and cook hands-free with voice control.",
+  "name": "ZeroWaste Chef",
+  "short_name": "ZeroWaste Chef",
+  "description": "AI-powered kitchen hub. Track your inventory, discover recipes from ingredients you already have, and never waste food again.",
   "start_url": "/dashboard",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#000000",
+  "theme_color": "#ea580c",
+  "orientation": "portrait",
+  "scope": "/",
   "icons": [
     {
-      "src": "/favicon.ico",
-      "sizes": "64x64",
-      "type": "image/x-icon"
+      "src": "/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable any"
     }
   ]
 }
