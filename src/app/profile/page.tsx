@@ -30,6 +30,17 @@ interface ProfileData {
   notify_before_days: number;
 }
 
+function urlBase64ToUint8Array(base64String: string): Uint8Array {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/\\-/g, "+").replace(/_/g, "/");
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
 export default function ProfilePage() {
   const router = useRouter();
   const { user, signOut } = useAuth();
@@ -63,11 +74,14 @@ export default function ProfilePage() {
       navigator.serviceWorker.ready.then((reg) => {
         reg.pushManager.getSubscription().then((sub) => {
           setPushSubscription(sub);
-          setPushEnabled(!!sub);
+          // Fallback to profile field if no subscription object
+          setPushEnabled(!!sub || !!profile?.push_notifications);
         });
       });
+    } else {
+      setPushSupported(false);
     }
-  }, []);
+  }, [profile?.push_notifications]);
 
   useEffect(() => {
     if (!user) {
@@ -217,38 +231,82 @@ export default function ProfilePage() {
   };
 
   const handleTogglePush = async () => {
-    if (!pushSupported) return;
+    setError("");
+
+    // Check if push is supported
+    if (typeof window === "undefined" || !("serviceWorker" in navigator) || !("PushManager" in window)) {
+      setError("Push notifications are not supported on this browser.");
+      return;
+    }
+
+    // Ensure service worker is registered before attempting push
+    let registration: ServiceWorkerRegistration;
+    try {
+      registration = await navigator.serviceWorker.ready;
+    } catch {
+      setError("Service worker not ready. Please refresh the page and try again.");
+      return;
+    }
+
     if (pushEnabled && pushSubscription) {
-      await pushSubscription.unsubscribe();
-      await fetch("/api/notifications/push/subscribe", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ endpoint: pushSubscription.endpoint }),
-      });
-      setPushSubscription(null);
-      setPushEnabled(false);
-      setMessage("Push notifications disabled");
-    } else {
+      // Unsubscribe
       try {
-        const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-        if (!vapidKey || vapidKey === "your-vapid-public-key") {
-          setError("Push notifications require VAPID keys. Please add NEXT_PUBLIC_VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, and VAPID_SUBJECT to your Vercel environment variables. See SETUP_GUIDE.md for instructions.");
-          return;
-        }
-        const registration = await navigator.serviceWorker.ready;
-        const sub = await registration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: vapidKey,
-        });
+        await pushSubscription.unsubscribe();
         await fetch("/api/notifications/push/subscribe", {
-          method: "POST",
+          method: "DELETE",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ subscription: sub.toJSON() }),
+          body: JSON.stringify({ endpoint: pushSubscription.endpoint }),
         });
-        setPushSubscription(sub);
-        setPushEnabled(true);
-        setMessage("Push notifications enabled");
+        setPushSubscription(null);
+        setPushEnabled(false);
+        setMessage("Push notifications disabled");
+
+        // Also update profile flag
+        await fetch("/api/profile", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ push_notifications: false }),
+        });
       } catch (err: any) {
+        setError(err.message || "Failed to disable push notifications");
+      }
+      return;
+    }
+
+    // Subscribe
+    try {
+      const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+      if (!vapidKey || vapidKey === "your-vapid-public-key") {
+        setError("Push notifications require VAPID keys. Please add NEXT_PUBLIC_VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, and VAPID_SUBJECT to your Vercel environment variables.");
+        return;
+      }
+
+      const sub = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(vapidKey) as any,
+      });
+
+      await fetch("/api/notifications/push/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subscription: sub.toJSON() }),
+      });
+      setPushSubscription(sub);
+      setPushEnabled(true);
+      setMessage("Push notifications enabled");
+
+      // Also update profile flag
+      await fetch("/api/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ push_notifications: true }),
+      });
+    } catch (err: any) {
+      if (err.name === "NotAllowedError") {
+        setError("Push notification permission denied. Check your browser settings.");
+      } else if (err.message?.includes("unsubscribe")) {
+        setError("Failed to remove old subscription. Please reload the page.");
+      } else {
         setError(err.message || "Failed to enable push notifications");
       }
     }

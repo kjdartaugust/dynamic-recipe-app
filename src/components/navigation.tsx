@@ -30,12 +30,31 @@ export function Navigation() {
   const [expiringCount, setExpiringCount] = useState(0);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
+  const fetchExpiringCount = () => {
     if (!user) return;
     fetch("/api/fridge/expiring-count")
       .then((r) => r.json())
-      .then((d) => setExpiringCount(d.count || 0))
+      .then((d) => {
+        const count = typeof d.count === "number" ? d.count : 0;
+        setExpiringCount(count);
+      })
       .catch(() => {});
+  };
+
+  useEffect(() => {
+    fetchExpiringCount();
+    // Refresh every 30 seconds
+    const interval = setInterval(fetchExpiringCount, 30000);
+    // Refresh on window focus and visibility change (for mobile)
+    const onFocus = () => fetchExpiringCount();
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") fetchExpiringCount();
+    });
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("focus", onFocus);
+    };
   }, [user]);
 
   // Close user menu on click outside
@@ -92,11 +111,11 @@ export function Navigation() {
               >
                 <item.icon className="h-4 w-4" />
                 {item.label}
-                {item.href === "/fridge" && expiringCount > 0 && (
-                  <span className="ml-1 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
-                    {expiringCount}
-                  </span>
-                )}
+                  {item.href === "/fridge" && expiringCount > 0 && (
+                    <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold px-1 rounded-full ml-1">
+                      {expiringCount > 99 ? "99+" : expiringCount}
+                    </span>
+                  )}
               </Link>
             ))}
           </nav>
@@ -213,8 +232,8 @@ export function Navigation() {
                   <item.icon className="h-4 w-4" />
                   {item.label}
                   {item.href === "/fridge" && expiringCount > 0 && (
-                    <span className="ml-auto bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
-                      {expiringCount}
+                    <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold px-1 rounded-full ml-1">
+                      {expiringCount > 99 ? "99+" : expiringCount}
                     </span>
                   )}
                 </Link>
