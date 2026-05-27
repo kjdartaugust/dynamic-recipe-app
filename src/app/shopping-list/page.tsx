@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   ShoppingCart,
@@ -13,292 +13,196 @@ import {
   X,
   RefreshCw,
   WifiOff,
-  Wifi,
 } from "lucide-react";
-import {
-  cacheShoppingList,
-  getCachedShoppingList,
-  addShoppingListItem as addCachedItem,
-  updateShoppingListItem as updateCachedItem,
-  removeShoppingListItem as removeCachedItem,
-  getUnsyncedShoppingListItems,
-  clearShoppingListCache,
-  isOnline,
-} from "@/lib/offline-cache";
 
-interface ShoppingListItem {
+interface ShoppingItem {
+  id: string;
   name: string;
   amount?: number;
   unit?: string;
   checked: boolean;
-  recipe_id?: string;
   recipe_title?: string;
 }
 
 interface ShoppingList {
   id: string;
   title: string;
-  items: ShoppingListItem[];
-  created_at: string;
-  updated_at: string;
+  items: ShoppingItem[];
 }
 
 export default function ShoppingListPage() {
   const router = useRouter();
-  const pathname = usePathname();
   const [list, setList] = useState<ShoppingList | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [newItemName, setNewItemName] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isOnlineState, setIsOnlineState] = useState(true);
-  const [showOfflineBanner, setShowOfflineBanner] = useState(false);
-  const [unsyncedCount, setUnsyncedCount] = useState(0);
+  const [pendingOffline, setPendingOffline] = useState(false);
 
-  // Monitor online status
-  useEffect(() => {
-    setIsOnlineState(isOnline());
-
-    const handleOnline = () => {
-      setIsOnlineState(true);
-      setShowOfflineBanner(false);
-      syncPendingChanges();
-    };
-    const handleOffline = () => {
-      setIsOnlineState(false);
-      setShowOfflineBanner(true);
-    };
-
-    window.addEventListener("online", handleOnline);
-    window.addEventListener("offline", handleOffline);
-
-    return () => {
-      window.removeEventListener("online", handleOnline);
-      window.removeEventListener("offline", handleOffline);
-    };
-  }, []);
-
+  // Load list: prefer server when online, localStorage when offline
   const loadList = useCallback(async () => {
     setIsLoading(true);
     try {
-      // Load from server if online
-      if (isOnline()) {
-        const res = await fetch("/api/shopping-list", {
-          cache: "no-store",
-          headers: { "Cache-Control": "no-cache" },
-        });
+      if (navigator.onLine) {
+        const res = await fetch("/api/shopping-list", { cache: "no-store" });
         if (res.status === 401) {
           router.push("/login");
           return;
         }
         const data = await res.json();
-        if (data.lists && data.lists.length > 0) {
-          setList(data.lists[0]);
-          // Cache for offline use
-          await cacheShoppingList(
-            data.lists[0].items.map((item: ShoppingListItem, i: number) => ({
-              id: `item-${i}`,
-              name: item.name,
-              amount: item.amount || null,
-              unit: item.unit || null,
-              checked: item.checked,
-              synced: true,
-            }))
-          );
+        if (data.lists?.length > 0) {
+          const serverList = data.lists[0];
+          setList(serverList);
+          // Persist to localStorage for offline
+          localStorage.setItem("shopping-list", JSON.stringify(serverList));
         } else {
           setList(null);
-          await clearShoppingListCache();
+          localStorage.removeItem("shopping-list");
         }
       } else {
-        // Offline: load from cache
-        const cached = await getCachedShoppingList();
-        if (cached.length > 0) {
-          setList({
-            id: "offline",
-            title: "My Shopping List",
-            items: cached.map((c) => ({
-              name: c.name,
-              amount: c.amount || undefined,
-              unit: c.unit || undefined,
-              checked: c.checked,
-            })),
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          });
+        // Offline: load from localStorage
+        const cached = localStorage.getItem("shopping-list");
+        if (cached) {
+          setList(JSON.parse(cached));
         } else {
           setList(null);
         }
       }
-    } catch (err) {
-      console.error("Error loading shopping list:", err);
-      // Fallback to cache on error
-      const cached = await getCachedShoppingList();
-      if (cached.length > 0) {
-        setList({
-          id: "offline",
-          title: "My Shopping List (Offline)",
-          items: cached.map((c) => ({
-            name: c.name,
-            amount: c.amount || undefined,
-            unit: c.unit || undefined,
-            checked: c.checked,
-          })),
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        });
-      }
+    } catch {
+      // Fallback to cache
+      const cached = localStorage.getItem("shopping-list");
+      if (cached) setList(JSON.parse(cached));
     } finally {
       setIsLoading(false);
     }
   }, [router]);
 
-  const syncPendingChanges = async () => {
-    const unsynced = await getUnsyncedShoppingListItems();
-    setUnsyncedCount(unsynced.length);
-
-    if (unsynced.length === 0 || !isOnline()) return;
-
-    // Try to sync each item
-    for (const item of unsynced) {
-      try {
-        // Add/update on server
-        await fetch("/api/shopping-list/items", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: item.name,
-            amount: item.amount,
-            unit: item.unit,
-            checked: item.checked,
-          }),
-        });
-      } catch (e) {
-        console.error("Failed to sync item:", item.name);
-      }
-    }
-
-    // Reload from server after sync
-    await loadList();
-    setUnsyncedCount(0);
-  };
-
   useEffect(() => {
     loadList();
-  }, [pathname, loadList]);
 
-  const saveList = async (updatedList: ShoppingList) => {
-    setIsSaving(true);
+    const onOnline = () => {
+      setIsOnlineState(true);
+      setPendingOffline(false);
+      // Auto-sync when coming back online
+      setTimeout(loadList, 1000);
+    };
+    const onOffline = () => setIsOnlineState(false);
 
-    // Always update local cache first
-    await cacheShoppingList(
-      updatedList.items.map((item, i) => ({
-        id: `item-${i}`,
-        name: item.name,
-        amount: item.amount || null,
-        unit: item.unit || null,
-        checked: item.checked,
-        synced: isOnline(),
-      }))
-    );
+    window.addEventListener("online", onOnline);
+    window.addEventListener("offline", onOffline);
+    return () => {
+      window.removeEventListener("online", onOnline);
+      window.removeEventListener("offline", onOffline);
+    };
+  }, [loadList]);
 
-    if (!isOnline()) {
-      setIsSaving(false);
-      setUnsyncedCount((prev) => prev + 1);
-      return;
-    }
-
-    try {
-      const res = await fetch("/api/shopping-list", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          listId: updatedList.id,
-          title: updatedList.title,
-          items: updatedList.items,
-        }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setList(data.list);
+  const persist = useCallback(
+    async (updatedList: ShoppingList | null) => {
+      setList(updatedList);
+      if (updatedList) {
+        localStorage.setItem("shopping-list", JSON.stringify(updatedList));
+      } else {
+        localStorage.removeItem("shopping-list");
       }
-    } catch (err) {
-      console.error("Error saving list:", err);
-    } finally {
-      setIsSaving(false);
-    }
-  };
 
-  const toggleItem = async (index: number) => {
+      if (!navigator.onLine) {
+        setPendingOffline(true);
+        return;
+      }
+
+      setIsSaving(true);
+      try {
+        if (updatedList) {
+          await fetch("/api/shopping-list", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              listId: updatedList.id,
+              title: updatedList.title,
+              items: updatedList.items,
+            }),
+          });
+        } else {
+          // Clear all
+          await fetch("/api/shopping-list", { method: "DELETE" });
+        }
+      } catch {
+        setPendingOffline(true);
+      } finally {
+        setIsSaving(false);
+      }
+    },
+    []
+  );
+
+  const toggleItem = (index: number) => {
     if (!list) return;
-    const updated = { ...list };
-    updated.items = updated.items.map((item, i) =>
-      i === index ? { ...item, checked: !item.checked } : item
-    );
-    setList(updated);
-    await saveList(updated);
+    const updated = {
+      ...list,
+      items: list.items.map((item, i) =>
+        i === index ? { ...item, checked: !item.checked } : item
+      ),
+    };
+    persist(updated);
   };
 
-  const removeItem = async (index: number) => {
+  const removeItem = (index: number) => {
     if (!list) return;
-    const updated = { ...list };
-    updated.items = updated.items.filter((_, i) => i !== index);
-    setList(updated);
-    await saveList(updated);
+    const updated = {
+      ...list,
+      items: list.items.filter((_, i) => i !== index),
+    };
+    persist(updated);
   };
 
-  const addItem = async () => {
+  const addItem = () => {
     if (!newItemName.trim()) return;
 
     if (!list) {
       const newList: ShoppingList = {
-        id: isOnline() ? "" : "offline",
+        id: "local",
         title: "My Shopping List",
-        items: [{ name: newItemName.trim(), checked: false }],
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        items: [
+          {
+            id: `local-${Date.now()}`,
+            name: newItemName.trim(),
+            checked: false,
+          },
+        ],
       };
-      setList(newList);
-      await saveList(newList);
+      persist(newList);
       setNewItemName("");
       return;
     }
 
-    const updated = { ...list };
-    updated.items = [...updated.items, { name: newItemName.trim(), checked: false }];
-    setList(updated);
-    await saveList(updated);
+    const updated = {
+      ...list,
+      items: [
+        ...list.items,
+        {
+          id: `local-${Date.now()}`,
+          name: newItemName.trim(),
+          checked: false,
+        },
+      ],
+    };
+    persist(updated);
     setNewItemName("");
   };
 
-  const clearCompleted = async () => {
+  const clearCompleted = () => {
     if (!list) return;
-    const updated = { ...list };
-    updated.items = updated.items.filter((item) => !item.checked);
-    setList(updated);
-    await saveList(updated);
+    const updated = {
+      ...list,
+      items: list.items.filter((item) => !item.checked),
+    };
+    persist(updated);
   };
 
   const clearAll = async () => {
     if (!list) return;
-    if (!confirm("Are you sure you want to clear the entire shopping list?")) return;
-
-    if (!isOnline()) {
-      // Offline: just clear cache
-      await clearShoppingListCache();
-      setList(null);
-      return;
-    }
-
-    try {
-      const res = await fetch(`/api/shopping-list?listId=${list.id}`, {
-        method: "DELETE",
-      });
-      if (res.ok) {
-        await clearShoppingListCache();
-        setList(null);
-      }
-    } catch (err) {
-      console.error("Error clearing list:", err);
-    }
+    if (!confirm("Clear entire shopping list?")) return;
+    persist(null);
   };
 
   const checkedCount = list?.items.filter((i) => i.checked).length || 0;
@@ -307,16 +211,21 @@ export default function ShoppingListPage() {
   return (
     <div className="max-w-3xl mx-auto space-y-8">
       {/* Offline Banner */}
-      {(!isOnlineState || showOfflineBanner) && (
+      {!isOnlineState && (
         <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-3 text-amber-700">
           <WifiOff className="h-5 w-5 flex-shrink-0" />
-          <div className="flex-1">
+          <div>
             <p className="text-sm font-medium">You are offline</p>
             <p className="text-xs text-amber-600">
-              Shopping list works offline. Changes will sync when you reconnect.
-              {unsyncedCount > 0 && ` (${unsyncedCount} unsynced)`}
+              Shopping list works offline. Changes save to local storage.
             </p>
           </div>
+        </div>
+      )}
+      {pendingOffline && isOnlineState && (
+        <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl flex items-center gap-3 text-blue-700">
+          <RefreshCw className="h-5 w-5 flex-shrink-0 animate-spin" />
+          <p className="text-sm">Syncing offline changes to server...</p>
         </div>
       )}
 
@@ -332,21 +241,13 @@ export default function ShoppingListPage() {
           </Link>
           <h1 className="text-3xl font-bold gradient-text">Shopping List</h1>
         </div>
-        <div className="flex items-center gap-2">
-          {isOnlineState ? (
-            <Wifi className="h-4 w-4 text-green-500" />
-          ) : (
-            <WifiOff className="h-4 w-4 text-amber-500" />
-          )}
-          <button
-            onClick={loadList}
-            disabled={isLoading}
-            className="p-2 text-muted-foreground hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-all"
-            title="Refresh"
-          >
-            <RefreshCw className={`h-5 w-5 ${isLoading ? "animate-spin" : ""}`} />
-          </button>
-        </div>
+        <button
+          onClick={loadList}
+          disabled={isLoading}
+          className="p-2 text-muted-foreground hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-all"
+        >
+          <RefreshCw className={`h-5 w-5 ${isLoading ? "animate-spin" : ""}`} />
+        </button>
       </div>
 
       {isLoading ? (
@@ -386,7 +287,7 @@ export default function ShoppingListPage() {
             )}
           </div>
 
-          {/* Progress bar */}
+          {/* Progress */}
           <div className="h-2 bg-orange-100 rounded-full overflow-hidden">
             <div
               className="h-full bg-gradient-to-r from-orange-500 to-red-500 transition-all duration-300"
@@ -417,7 +318,7 @@ export default function ShoppingListPage() {
           <div className="space-y-2">
             {list.items.map((item, index) => (
               <div
-                key={index}
+                key={item.id || index}
                 className={`flex items-center gap-3 p-4 rounded-xl border transition-all ${
                   item.checked
                     ? "bg-orange-50/30 border-orange-100"
