@@ -6,6 +6,7 @@ import { Clock, Users, ChefHat, Flame, Heart, Search, Star, Globe, Lock, AlertTr
 import { RecipeSearch } from "@/components/recipe-search";
 import { FavoriteButton } from "@/components/favorite-button";
 import { TagDisplay } from "@/components/tag-display";
+import { DashboardActions } from "@/components/dashboard-actions";
 
 export const metadata = {
   title: "Dashboard",
@@ -347,13 +348,7 @@ export default async function DashboardPage({
             Your personal recipe collection
           </p>
         </div>
-        <Link
-          href="/recipes/create"
-          className="inline-flex items-center justify-center gap-2 px-5 py-2.5 btn-gradient text-white rounded-xl font-medium"
-        >
-          <ChefHat className="h-4 w-4" />
-          Create Recipe
-        </Link>
+        <DashboardActions />
       </div>
 
       {/* Public Sharing Tip */}

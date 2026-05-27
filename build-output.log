@@ -1,0 +1,74 @@
+
+> dynamic-recipe-app@0.1.0 build
+> next build
+
+ΓÜá Warning: Next.js inferred your workspace root, but it may not be correct.
+ We detected multiple lockfiles and selected the directory of C:\Users\august\yarn.lock as the root directory.
+ To silence this warning, set `turbopack.root` in your Next.js config, or consider removing one of the lockfiles if it's not needed.
+   See https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#root-directory for more information.
+ Detected additional lockfiles: 
+   * C:\Users\august\Desktop\Codetrain\ai_codetrain\exercise\dynamic-recipe-app\package-lock.json
+
+Γû▓ Next.js 16.2.6 (Turbopack)
+- Environments: .env.local
+
+  Creating an optimized production build ...
+Γ£ô Compiled successfully in 4.8s
+  Running TypeScript ...
+  Finished TypeScript in 6.5s ...
+  Collecting page data using 11 workers ...
+  Generating static pages using 11 workers (0/41) ...
+  Generating static pages using 11 workers (10/41) 
+  Generating static pages using 11 workers (20/41) 
+  Generating static pages using 11 workers (30/41) 
+Γ£ô Generating static pages using 11 workers (41/41) in 660ms
+  Finalizing page optimization ...
+
+Route (app)
+Γöî Γùï /
+Γö£ Γùï /_not-found
+Γö£ ╞Æ /api/ai/import-url
+Γö£ ╞Æ /api/ai/modify
+Γö£ ╞Æ /api/ai/rescue
+Γö£ ╞Æ /api/ai/scan
+Γö£ ╞Æ /api/chat
+Γö£ ╞Æ /api/debug/env
+Γö£ ╞Æ /api/explore
+Γö£ ╞Æ /api/favorites
+Γö£ ╞Æ /api/fridge
+Γö£ ╞Æ /api/fridge/expiring-count
+Γö£ ╞Æ /api/fridge/suggestions
+Γö£ ╞Æ /api/meal-plan
+Γö£ ╞Æ /api/meal-plan/shopping-list
+Γö£ ╞Æ /api/notifications/email
+Γö£ ╞Æ /api/notifications/push/send
+Γö£ ╞Æ /api/notifications/push/subscribe
+Γö£ ╞Æ /api/profile
+Γö£ ╞Æ /api/profile/delete
+Γö£ ╞Æ /api/profile/password
+Γö£ ╞Æ /api/ratings
+Γö£ ╞Æ /api/recipes
+Γö£ ╞Æ /api/recipes/visibility
+Γö£ ╞Æ /api/search
+Γö£ ╞Æ /api/seed-categories
+Γö£ ╞Æ /api/shopping-list
+Γö£ ╞Æ /api/tags
+Γö£ ╞Æ /api/upload
+Γö£ ╞Æ /dashboard
+Γö£ Γùï /explore
+Γö£ Γùï /fridge
+Γö£ Γùï /login
+Γö£ Γùï /meal-plan
+Γö£ Γùï /profile
+Γö£ ╞Æ /recipes/[id]
+Γö£ ╞Æ /recipes/create
+Γö£ Γùï /register
+Γö£ Γùï /shopping-list
+Γöö Γùï /stats
+
+
+╞Æ Proxy (Middleware)
+
+Γùï  (Static)   prerendered as static content
+╞Æ  (Dynamic)  server-rendered on demand
+
