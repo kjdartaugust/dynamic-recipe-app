@@ -46,26 +46,26 @@ export function VideoHero() {
           </div>
 
           <h1 className="text-5xl md:text-7xl font-bold text-white tracking-tight drop-shadow-lg">
-            Dynamic Recipe App
+            ZeroWaste Chef
           </h1>
           <p className="text-xl md:text-2xl text-white/90 max-w-2xl leading-relaxed drop-shadow-md">
-            AI-powered recipe management. Scan ingredients, modify recipes, and
-            cook with voice control.
+            Track what's in your kitchen. Let AI discover recipes from your ingredients. 
+            Reduce food waste, one delicious meal at a time.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 mt-4">
             <Link
-              href="/dashboard"
+              href="/fridge"
               className="inline-flex items-center gap-2 px-8 py-4 bg-white text-orange-600 rounded-xl font-semibold hover:bg-white/90 transition-all hover:shadow-xl hover:-translate-y-0.5"
             >
-              View Recipes
+              Go to My Kitchen
               <ArrowRight className="h-5 w-5" />
             </Link>
             <Link
-              href="/recipes/create"
+              href="/explore"
               className="inline-flex items-center gap-2 px-8 py-4 bg-white/10 text-white rounded-xl font-semibold border border-white/30 hover:bg-white/20 transition-all backdrop-blur-sm"
             >
-              Create Recipe
+              Explore Recipes
             </Link>
           </div>
         </div>

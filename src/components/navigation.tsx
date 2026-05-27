@@ -44,7 +44,7 @@ export function Navigation() {
             <div className="p-1.5 rounded-lg bg-gradient-to-br from-orange-500 to-red-500 text-white">
               <Flame className="h-5 w-5 fire-icon" />
             </div>
-            <span className="hidden sm:inline gradient-text">Dynamic Recipe App</span>
+            <span className="hidden sm:inline gradient-text">ZeroWaste Chef</span>
           </Link>
 
           {/* Desktop Navigation */}
