@@ -79,6 +79,7 @@ export default function KitchenHubPage() {
   const [suggestions, setSuggestions] = useState<RecipeSuggestion[]>([]);
   const [isLoadingItems, setIsLoadingItems] = useState(true);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+  const [suggestionsError, setSuggestionsError] = useState("");
   const [isAdding, setIsAdding] = useState(false);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [isGeneratingFull, setIsGeneratingFull] = useState<RecipeSuggestion | null>(null);
@@ -113,15 +114,22 @@ export default function KitchenHubPage() {
 
   const generateSuggestions = async () => {
     setIsLoadingSuggestions(true);
+    setSuggestionsError("");
     try {
       const response = await fetch("/api/fridge/suggestions");
       const data = await response.json();
-      if (response.ok && data.suggestions) {
+      if (!response.ok) {
+        throw new Error(data.error || `AI service error: ${response.status}`);
+      }
+      if (data.suggestions) {
         setSuggestions(data.suggestions);
         setActiveTab("suggestions");
+      } else {
+        throw new Error("No suggestions returned");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to fetch suggestions:", error);
+      setSuggestionsError(error.message || "Failed to generate recipe suggestions. Please try again.");
     } finally {
       setIsLoadingSuggestions(false);
     }
@@ -481,6 +489,19 @@ export default function KitchenHubPage() {
                 <Loader2 className="h-10 w-10 text-orange-500 animate-spin mb-4" />
                 <p className="text-muted-foreground">AI Chef is inventing recipes from your ingredients...</p>
                 <p className="text-sm text-muted-foreground mt-1">This may take a moment</p>
+              </div>
+            ) : suggestionsError ? (
+              <div className="text-center py-16">
+                <AlertTriangle className="h-12 w-12 text-red-400 mx-auto mb-4" />
+                <h2 className="text-xl font-semibold mb-2">Could not generate suggestions</h2>
+                <p className="text-red-600 mb-6 max-w-md mx-auto">{suggestionsError}</p>
+                <button
+                  onClick={() => { setSuggestionsError(""); generateSuggestions(); }}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 btn-gradient text-white rounded-xl font-medium"
+                >
+                  <Sparkles className="h-4 w-4" />
+                  Try Again
+                </button>
               </div>
             ) : suggestions.length === 0 ? (
               <div className="text-center py-16">
