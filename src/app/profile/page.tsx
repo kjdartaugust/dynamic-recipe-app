@@ -78,15 +78,6 @@ export default function ProfilePage() {
     fetchProfile();
   }, [user, router]);
 
-  useEffect(() => {
-    if (!user) {
-      router.push("/login");
-      return;
-    }
-
-    fetchProfile();
-  }, [user, router]);
-
   const fetchProfile = async () => {
     try {
       const response = await fetch("/api/profile");
@@ -240,7 +231,10 @@ export default function ProfilePage() {
     } else {
       try {
         const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-        if (!vapidKey) throw new Error("VAPID key not configured");
+        if (!vapidKey) {
+          setError("Push notifications are not configured. Contact the admin to set up VAPID keys.");
+          return;
+        }
         const registration = await navigator.serviceWorker.ready;
         const sub = await registration.pushManager.subscribe({
           userVisibleOnly: true,
@@ -384,73 +378,6 @@ export default function ProfilePage() {
                 )}
               </button>
             </form>
-          </div>
-
-          {/* Notification Preferences */}
-          <div className="card-gradient rounded-2xl p-6 border border-orange-100">
-            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-              <Bell className="h-5 w-5 text-orange-500" />
-              Notifications
-            </h2>
-
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium text-foreground">Email Alerts</p>
-                  <p className="text-sm text-muted-foreground">Get daily expiry reminders via email</p>
-                </div>
-                <button
-                  onClick={toggleEmailNotifications}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                    profile?.email_notifications ? "bg-orange-500" : "bg-gray-200"
-                  }`}
-                >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      profile?.email_notifications ? "translate-x-6" : "translate-x-1"
-                    }`}
-                  />
-                </button>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium text-foreground">Push Notifications</p>
-                  <p className="text-sm text-muted-foreground">Browser push alerts for expiring items</p>
-                </div>
-                <button
-                  onClick={handleTogglePush}
-                  disabled={!pushSupported}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                    pushEnabled ? "bg-orange-500" : "bg-gray-200"
-                  } ${!pushSupported ? "opacity-50 cursor-not-allowed" : ""}`}
-                >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      pushEnabled ? "translate-x-6" : "translate-x-1"
-                    }`}
-                  />
-                </button>
-              </div>
-
-              <div>
-                <label className="text-sm font-medium text-foreground">
-                  Notify me before expiry (days)
-                </label>
-                <input
-                  type="number"
-                  min={1}
-                  max={14}
-                  value={profile?.notify_before_days || 3}
-                  onChange={(e) =>
-                    setProfile((prev) =>
-                      prev ? { ...prev, notify_before_days: parseInt(e.target.value) || 3 } : null
-                    )
-                  }
-                  className="w-full mt-1 px-4 py-2.5 border border-orange-200 rounded-xl bg-white text-foreground focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-orange-400 transition-all"
-                />
-              </div>
-            </div>
           </div>
 
           {/* Notification Preferences */}
