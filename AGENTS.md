@@ -33,7 +33,10 @@ You are building a sophisticated Next.js recipe application using purely free cl
 
 ### Phase 4: Production Read Readiness
 1. Set up optimized Next.js standard SEO metadata wrappers across structural routing files.
-2. Confirm `.env.example` lists variables cleanly: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `GEMINI_API_KEY`.
+2. Confirm `.env.example` lists variables cleanly:
+  - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `OPENROUTER_API_KEY`
+  - `RESEND_API_KEY`, `FROM_EMAIL` — email notifications via Resend (100/day free)
+  - `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` — Web Push notifications
 
 ### Phase 5: Bold Warm Gradient UI Redesign
 1. Define warm gradient CSS variables (`--primary: #ea580c`, etc.) and custom utilities (`gradient-bg-hero`, `gradient-text`, `btn-gradient`, `card-gradient`).
