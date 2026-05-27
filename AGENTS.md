@@ -122,18 +122,7 @@ CRON_SECRET=
 All features built and deployed. Vercel auto-deploys on every push to `main`.
 Build: `next build` passes with zero TypeScript errors.
 
-### Recently Completed (Option D: PWA & Offline Support)
-- Enhanced service worker with 3-tier caching (static, API, images)
-- PWA install prompt with dismiss memory
-- Offline IndexedDB cache for recipes (up to 50) and shopping list
-- Shopping list offline mode with auto-sync on reconnect
-- Recipe auto-cache when viewed for offline cooking
-- Updated webmanifest with proper PWA config
-
-### Recently Completed (Option D: PWA & Offline Support)
-- Enhanced service worker with 3-tier caching (static, API, images)
-- PWA install prompt with dismiss memory
-- Offline IndexedDB cache for recipes (up to 50) and shopping list
-- Shopping list offline mode with auto-sync on reconnect
-- Recipe auto-cache when viewed for offline cooking
-- Updated webmanifest with proper PWA config
+### Recently Completed (Options D, E, F)
+- **PWA & Offline Support (Option D)**: Service worker with 3-tier caching, install prompt, IndexedDB recipe cache (50 max), offline shopping list with auto-sync on reconnect
+- **Collections & Organization (Option E)**: Create collections, add/remove recipes, reorder with positions (`/collections`, `/collections/[id]`), "Add to Collection" button on recipe detail
+- **Dark Mode Toggle (Option F)**: Theme context with localStorage persistence, sun/moon toggle in navigation, full CSS dark theme variables already existed — now functional via `dark` class toggle
