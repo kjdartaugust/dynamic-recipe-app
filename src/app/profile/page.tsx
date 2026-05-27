@@ -14,6 +14,9 @@ import {
   AlertTriangle,
   Flame,
   CheckCircle,
+  Bell,
+  BellRing,
+  BellOff,
 } from "lucide-react";
 
 interface ProfileData {
@@ -22,6 +25,9 @@ interface ProfileData {
   avatar_url: string | null;
   created_at: string;
   updated_at: string;
+  email_notifications: boolean;
+  push_notifications: boolean;
+  notify_before_days: number;
 }
 
 export default function ProfilePage() {
@@ -41,10 +47,36 @@ export default function ProfilePage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isChangingPassword, setIsChangingPassword] = useState(false);
 
+  // Notification state
+  const [pushEnabled, setPushEnabled] = useState(false);
+  const [pushSupported, setPushSupported] = useState(false);
+  const [pushSubscription, setPushSubscription] = useState<PushSubscription | null>(null);
+
   // Delete account state
   const [deletePassword, setDeletePassword] = useState("");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && "serviceWorker" in navigator && "PushManager" in window) {
+      setPushSupported(true);
+      navigator.serviceWorker.ready.then((reg) => {
+        reg.pushManager.getSubscription().then((sub) => {
+          setPushSubscription(sub);
+          setPushEnabled(!!sub);
+        });
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!user) {
+      router.push("/login");
+      return;
+    }
+
+    fetchProfile();
+  }, [user, router]);
 
   useEffect(() => {
     if (!user) {
@@ -86,6 +118,9 @@ export default function ProfilePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           username: profile?.username,
+          email_notifications: profile?.email_notifications,
+          push_notifications: profile?.push_notifications,
+          notify_before_days: profile?.notify_before_days,
         }),
       });
 
@@ -171,6 +206,108 @@ export default function ProfilePage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to delete account");
       setIsDeleting(false);
+    }
+  };
+
+  const toggleEmailNotifications = async () => {
+    if (!profile) return;
+    const newValue = !profile.email_notifications;
+    setProfile({ ...profile, email_notifications: newValue });
+    try {
+      await fetch("/api/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email_notifications: newValue }),
+      });
+      setMessage(newValue ? "Email notifications enabled" : "Email notifications disabled");
+    } catch {
+      setProfile({ ...profile, email_notifications: !newValue });
+    }
+  };
+
+  const handleTogglePush = async () => {
+    if (!pushSupported) return;
+    if (pushEnabled && pushSubscription) {
+      await pushSubscription.unsubscribe();
+      await fetch("/api/notifications/push/subscribe", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ endpoint: pushSubscription.endpoint }),
+      });
+      setPushSubscription(null);
+      setPushEnabled(false);
+      setMessage("Push notifications disabled");
+    } else {
+      try {
+        const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+        if (!vapidKey) throw new Error("VAPID key not configured");
+        const registration = await navigator.serviceWorker.ready;
+        const sub = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: vapidKey,
+        });
+        await fetch("/api/notifications/push/subscribe", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ subscription: sub.toJSON() }),
+        });
+        setPushSubscription(sub);
+        setPushEnabled(true);
+        setMessage("Push notifications enabled");
+      } catch (err: any) {
+        setError(err.message || "Failed to enable push notifications");
+      }
+    }
+  };
+
+  const toggleEmailNotifications = async () => {
+    if (!profile) return;
+    const newValue = !profile.email_notifications;
+    setProfile({ ...profile, email_notifications: newValue });
+    try {
+      await fetch("/api/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email_notifications: newValue }),
+      });
+      setMessage(newValue ? "Email notifications enabled" : "Email notifications disabled");
+    } catch {
+      setProfile({ ...profile, email_notifications: !newValue });
+    }
+  };
+
+  const handleTogglePush = async () => {
+    if (!pushSupported) return;
+    if (pushEnabled && pushSubscription) {
+      await pushSubscription.unsubscribe();
+      await fetch("/api/notifications/push/subscribe", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ endpoint: pushSubscription.endpoint }),
+      });
+      setPushSubscription(null);
+      setPushEnabled(false);
+      setMessage("Push notifications disabled");
+    } else {
+      try {
+        const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+        if (!vapidKey) throw new Error("VAPID key not configured");
+        const registration = await navigator.serviceWorker.ready;
+        const sub = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: vapidKey,
+        });
+        await fetch("/api/notifications/push/subscribe", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ subscription: sub.toJSON() }),
+        });
+        setPushSubscription(sub);
+        setPushEnabled(true);
+        setMessage("Push notifications enabled");
+      } catch (err: any) {
+        setError(err.message || "Failed to enable push notifications");
+      }
     }
   };
 
@@ -298,6 +435,140 @@ export default function ProfilePage() {
                 )}
               </button>
             </form>
+          </div>
+
+          {/* Notification Preferences */}
+          <div className="card-gradient rounded-2xl p-6 border border-orange-100">
+            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <Bell className="h-5 w-5 text-orange-500" />
+              Notifications
+            </h2>
+
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium text-foreground">Email Alerts</p>
+                  <p className="text-sm text-muted-foreground">Get daily expiry reminders via email</p>
+                </div>
+                <button
+                  onClick={toggleEmailNotifications}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    profile?.email_notifications ? "bg-orange-500" : "bg-gray-200"
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      profile?.email_notifications ? "translate-x-6" : "translate-x-1"
+                    }`}
+                  />
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium text-foreground">Push Notifications</p>
+                  <p className="text-sm text-muted-foreground">Browser push alerts for expiring items</p>
+                </div>
+                <button
+                  onClick={handleTogglePush}
+                  disabled={!pushSupported}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    pushEnabled ? "bg-orange-500" : "bg-gray-200"
+                  } ${!pushSupported ? "opacity-50 cursor-not-allowed" : ""}`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      pushEnabled ? "translate-x-6" : "translate-x-1"
+                    }`}
+                  />
+                </button>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-foreground">
+                  Notify me before expiry (days)
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  max={14}
+                  value={profile?.notify_before_days || 3}
+                  onChange={(e) =>
+                    setProfile((prev) =>
+                      prev ? { ...prev, notify_before_days: parseInt(e.target.value) || 3 } : null
+                    )
+                  }
+                  className="w-full mt-1 px-4 py-2.5 border border-orange-200 rounded-xl bg-white text-foreground focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-orange-400 transition-all"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Notification Preferences */}
+          <div className="card-gradient rounded-2xl p-6 border border-orange-100">
+            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <Bell className="h-5 w-5 text-orange-500" />
+              Notifications
+            </h2>
+
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium text-foreground">Email Alerts</p>
+                  <p className="text-sm text-muted-foreground">Get daily expiry reminders via email</p>
+                </div>
+                <button
+                  onClick={toggleEmailNotifications}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    profile?.email_notifications ? "bg-orange-500" : "bg-gray-200"
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      profile?.email_notifications ? "translate-x-6" : "translate-x-1"
+                    }`}
+                  />
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium text-foreground">Push Notifications</p>
+                  <p className="text-sm text-muted-foreground">Browser push alerts for expiring items</p>
+                </div>
+                <button
+                  onClick={handleTogglePush}
+                  disabled={!pushSupported}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    pushEnabled ? "bg-orange-500" : "bg-gray-200"
+                  } ${!pushSupported ? "opacity-50 cursor-not-allowed" : ""}`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      pushEnabled ? "translate-x-6" : "translate-x-1"
+                    }`}
+                  />
+                </button>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-foreground">
+                  Notify me before expiry (days)
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  max={14}
+                  value={profile?.notify_before_days || 3}
+                  onChange={(e) =>
+                    setProfile((prev) =>
+                      prev ? { ...prev, notify_before_days: parseInt(e.target.value) || 3 } : null
+                    )
+                  }
+                  className="w-full mt-1 px-4 py-2.5 border border-orange-200 rounded-xl bg-white text-foreground focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-orange-400 transition-all"
+                />
+              </div>
+            </div>
           </div>
 
           {/* Change Password */}

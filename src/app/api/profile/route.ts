@@ -45,11 +45,17 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { username, avatar_url } = body;
+    const { username, avatar_url, email_notifications, push_notifications, notify_before_days } = body;
 
-    const updates: Record<string, string | null> = {};
+    const updates: Record<string, string | null | boolean | number> = {};
     if (username !== undefined) updates.username = username;
     if (avatar_url !== undefined) updates.avatar_url = avatar_url;
+    if (email_notifications !== undefined) updates.email_notifications = email_notifications;
+    if (push_notifications !== undefined) updates.push_notifications = push_notifications;
+    if (notify_before_days !== undefined) updates.notify_before_days = notify_before_days;
+    if (email_notifications !== undefined) updates.email_notifications = email_notifications;
+    if (push_notifications !== undefined) updates.push_notifications = push_notifications;
+    if (notify_before_days !== undefined) updates.notify_before_days = notify_before_days;
 
     const { data: profile, error } = await supabase
       .from("profiles")

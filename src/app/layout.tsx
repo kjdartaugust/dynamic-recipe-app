@@ -4,6 +4,7 @@ import "./globals.css";
 import { Navigation } from "@/components/navigation";
 import { AuthProvider } from "@/contexts/auth-context";
 import { RecipeChatbot } from "@/components/recipe-chatbot";
+import { ServiceWorkerRegistration } from "@/components/service-worker-registration";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -83,6 +84,7 @@ export default function RootLayout({
             {children}
           </main>
           <RecipeChatbot />
+          <ServiceWorkerRegistration />
         </AuthProvider>
       </body>
     </html>
