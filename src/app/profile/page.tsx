@@ -209,6 +209,57 @@ export default function ProfilePage() {
     }
   };
 
+  const toggleEmailNotifications = async () => {
+    if (!profile) return;
+    const newValue = !profile.email_notifications;
+    setProfile({ ...profile, email_notifications: newValue });
+    try {
+      await fetch("/api/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email_notifications: newValue }),
+      });
+      setMessage(newValue ? "Email notifications enabled" : "Email notifications disabled");
+    } catch {
+      setProfile({ ...profile, email_notifications: !newValue });
+    }
+  };
+
+  const handleTogglePush = async () => {
+    if (!pushSupported) return;
+    if (pushEnabled && pushSubscription) {
+      await pushSubscription.unsubscribe();
+      await fetch("/api/notifications/push/subscribe", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ endpoint: pushSubscription.endpoint }),
+      });
+      setPushSubscription(null);
+      setPushEnabled(false);
+      setMessage("Push notifications disabled");
+    } else {
+      try {
+        const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+        if (!vapidKey) throw new Error("VAPID key not configured");
+        const registration = await navigator.serviceWorker.ready;
+        const sub = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: vapidKey,
+        });
+        await fetch("/api/notifications/push/subscribe", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ subscription: sub.toJSON() }),
+        });
+        setPushSubscription(sub);
+        setPushEnabled(true);
+        setMessage("Push notifications enabled");
+      } catch (err: any) {
+        setError(err.message || "Failed to enable push notifications");
+      }
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center">

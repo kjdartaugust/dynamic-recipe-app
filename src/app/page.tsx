@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Sparkles, Refrigerator, Bell } from "lucide-react";
+import { ArrowRight, Sparkles, Refrigerator, Bell, ChefHat, Leaf } from "lucide-react";
 import { VideoHero } from "@/components/video-hero";
 
 export default function HomePage() {
