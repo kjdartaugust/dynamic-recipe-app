@@ -21,7 +21,9 @@ import {
   Flame,
   Leaf,
   Thermometer,
+  Scan,
 } from "lucide-react";
+import { FridgeScanner } from "@/components/fridge-scanner";
 
 interface FridgeItem {
   id: string;
@@ -80,6 +82,7 @@ export default function KitchenHubPage() {
   const [isAdding, setIsAdding] = useState(false);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [isGeneratingFull, setIsGeneratingFull] = useState<RecipeSuggestion | null>(null);
+  const [showScanner, setShowScanner] = useState(false);
   
   // Add item form
   const [name, setName] = useState("");
@@ -158,6 +161,30 @@ export default function KitchenHubPage() {
     } finally {
       setIsDeleting(null);
     }
+  };
+
+  const handleScannedItems = async (scannedItems: Array<{ name: string; amount: number | null; unit: string; expiry_date: string | null }>) => {
+    let added = 0;
+    for (const item of scannedItems) {
+      try {
+        const response = await fetch("/api/fridge", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: item.name,
+            amount: item.amount,
+            unit: item.unit,
+            expiry_date: item.expiry_date,
+            category: "other",
+          }),
+        });
+        if (response.ok) added++;
+      } catch (error) {
+        console.error("Failed to add scanned item:", item.name, error);
+      }
+    }
+    await fetchItems();
+    setShowScanner(false);
   };
 
   const handleCreateRecipe = async (suggestion: RecipeSuggestion) => {
@@ -281,14 +308,23 @@ export default function KitchenHubPage() {
         {/* INVENTORY TAB */}
         {activeTab === "inventory" && (
           <div className="space-y-6">
-            {/* Add Item Toggle */}
-            <button
-              onClick={() => setShowAddForm(!showAddForm)}
-              className="w-full py-3 border-2 border-dashed border-orange-200 rounded-xl text-orange-600 font-medium hover:bg-orange-50 hover:border-orange-300 transition-all flex items-center justify-center gap-2"
-            >
-              <Plus className="h-5 w-5" />
-              {showAddForm ? "Cancel" : "Add Item to Inventory"}
-            </button>
+            {/* Add / Scan Buttons */}
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => setShowAddForm(!showAddForm)}
+                className="py-3 border-2 border-dashed border-orange-200 rounded-xl text-orange-600 font-medium hover:bg-orange-50 hover:border-orange-300 transition-all flex items-center justify-center gap-2"
+              >
+                <Plus className="h-5 w-5" />
+                {showAddForm ? "Cancel" : "Add Item"}
+              </button>
+              <button
+                onClick={() => setShowScanner(true)}
+                className="py-3 border-2 border-dashed border-blue-200 rounded-xl text-blue-600 font-medium hover:bg-blue-50 hover:border-blue-300 transition-all flex items-center justify-center gap-2"
+              >
+                <Scan className="h-5 w-5" />
+                Scan Fridge
+              </button>
+            </div>
 
             {/* Add Form */}
             {showAddForm && (
@@ -552,6 +588,14 @@ export default function KitchenHubPage() {
               </div>
             )}
           </div>
+        )}
+
+        {/* Fridge Scanner Modal */}
+        {showScanner && (
+          <FridgeScanner
+            onAddItems={handleScannedItems}
+            onClose={() => setShowScanner(false)}
+          />
         )}
       </div>
     </div>
