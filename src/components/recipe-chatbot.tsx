@@ -378,15 +378,6 @@ export function RecipeChatbot({ recipeContext }: RecipeChatbotProps) {
               </div>
             );
           })()}
-              </div>
-            );
-          })()}
-              </div>
-            );
-          })()}
-              </div>
-            );
-          })()}
         </div>
       )}
     </>
