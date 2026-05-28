@@ -4,14 +4,10 @@ import { createClient } from "@/lib/supabase-server";
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    const { data: { user } } = await supabase.auth.getUser();
 
-    if (sessionError) {
-      return NextResponse.json({ error: `Session error: ${sessionError.message}` }, { status: 401 });
-    }
-
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized - no session" }, { status: 401 });
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const { searchParams } = new URL(request.url);
@@ -21,7 +17,7 @@ export async function GET(request: NextRequest) {
       const { data, error } = await supabase
         .from("favorites")
         .select("id")
-        .eq("user_id", session.user.id)
+        .eq("user_id", user.id)
         .eq("recipe_id", recipeId)
         .maybeSingle();
 
@@ -35,7 +31,7 @@ export async function GET(request: NextRequest) {
     const { data, error } = await supabase
       .from("favorites")
       .select("recipe_id")
-      .eq("user_id", session.user.id);
+      .eq("user_id", user.id);
 
     if (error) {
       return NextResponse.json({ error: `Query error: ${error.message}` }, { status: 500 });
@@ -51,14 +47,10 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    const { data: { user } } = await supabase.auth.getUser();
 
-    if (sessionError) {
-      return NextResponse.json({ error: `Session error: ${sessionError.message}` }, { status: 401 });
-    }
-
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized - no session" }, { status: 401 });
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const { recipeId } = await request.json();
@@ -69,7 +61,7 @@ export async function POST(request: NextRequest) {
 
     const { error } = await supabase
       .from("favorites")
-      .insert({ user_id: session.user.id, recipe_id: recipeId });
+      .insert({ user_id: user.id, recipe_id: recipeId });
 
     if (error) {
       return NextResponse.json({ error: `Insert error: ${error.message}` }, { status: 500 });
@@ -85,14 +77,10 @@ export async function POST(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const supabase = await createClient();
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    const { data: { user } } = await supabase.auth.getUser();
 
-    if (sessionError) {
-      return NextResponse.json({ error: `Session error: ${sessionError.message}` }, { status: 401 });
-    }
-
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized - no session" }, { status: 401 });
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const { searchParams } = new URL(request.url);
@@ -105,7 +93,7 @@ export async function DELETE(request: NextRequest) {
     const { error } = await supabase
       .from("favorites")
       .delete()
-      .eq("user_id", session.user.id)
+      .eq("user_id", user.id)
       .eq("recipe_id", recipeId);
 
     if (error) {

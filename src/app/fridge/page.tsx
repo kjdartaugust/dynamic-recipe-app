@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
 import Link from "next/link";
-import Image from "next/image";
 import {
   Refrigerator,
   Plus,
@@ -24,6 +23,7 @@ import {
   Scan,
 } from "lucide-react";
 import { FridgeScanner } from "@/components/fridge-scanner";
+import { RecipeImage } from "@/components/recipe-image";
 
 interface FridgeItem {
   id: string;
@@ -73,7 +73,7 @@ function getExpiryLabel(days: number | null): string {
 
 export default function KitchenHubPage() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
   const [activeTab, setActiveTab] = useState<"inventory" | "suggestions">("inventory");
   const [items, setItems] = useState<FridgeItem[]>([]);
   const [suggestions, setSuggestions] = useState<RecipeSuggestion[]>([]);
@@ -93,12 +93,13 @@ export default function KitchenHubPage() {
   const [showAddForm, setShowAddForm] = useState(false);
 
   useEffect(() => {
+    if (isLoading) return;
     if (!user) {
       router.push("/login");
       return;
     }
     fetchItems();
-  }, [user, router]);
+  }, [user, isLoading, router]);
 
   const fetchItems = async () => {
     try {
@@ -535,13 +536,10 @@ export default function KitchenHubPage() {
                   >
                     {/* AI Food Image */}
                     <div className="relative h-48 bg-gradient-to-br from-orange-100 to-red-100 overflow-hidden">
-                      <img
+                      <RecipeImage
                         src={suggestion.imageUrl}
                         alt={suggestion.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).style.display = "none";
-                        }}
+                        className="h-full group-hover:scale-105 transition-transform duration-500"
                       />
                       <div className="absolute top-3 left-3 flex gap-2">
                         {suggestion.tags.slice(0, 2).map((tag) => (

@@ -5,16 +5,16 @@ import { createClient } from "@/lib/supabase-server";
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    const { data: { user } } = await supabase.auth.getUser();
 
-    if (sessionError || !session?.user) {
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const { data, error } = await supabase
       .from("shopping_lists")
       .select("*")
-      .eq("user_id", session.user.id)
+      .eq("user_id", user.id)
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -32,9 +32,9 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    const { data: { user } } = await supabase.auth.getUser();
 
-    if (sessionError || !session?.user) {
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
           updated_at: new Date().toISOString(),
         })
         .eq("id", listId)
-        .eq("user_id", session.user.id)
+        .eq("user_id", user.id)
         .select()
         .single();
 
@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
     const { data, error } = await supabase
       .from("shopping_lists")
       .insert({
-        user_id: session.user.id,
+        user_id: user.id,
         title: title || "My Shopping List",
         items,
       })
@@ -89,9 +89,9 @@ export async function POST(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const supabase = await createClient();
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    const { data: { user } } = await supabase.auth.getUser();
 
-    if (sessionError || !session?.user) {
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -106,7 +106,7 @@ export async function DELETE(request: NextRequest) {
       .from("shopping_lists")
       .delete()
       .eq("id", listId)
-      .eq("user_id", session.user.id);
+      .eq("user_id", user.id);
 
     if (error) {
       return NextResponse.json({ error: `Delete error: ${error.message}` }, { status: 500 });

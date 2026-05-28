@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase-client";
 import { IngredientScanner } from "@/components/ingredient-scanner";
@@ -24,6 +24,7 @@ interface Category {
 
 export default function CreateRecipeForm({ userId }: { userId: string }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [instructions, setInstructions] = useState("");
@@ -50,7 +51,34 @@ export default function CreateRecipeForm({ userId }: { userId: string }) {
       if (data) setCategories(data);
     }
     loadCategories();
-  }, []);
+
+    // Parse rescue data from URL if present
+    const rescueParam = searchParams.get("rescue");
+    if (rescueParam) {
+      try {
+        const rescue = JSON.parse(decodeURIComponent(rescueParam));
+        if (rescue.title) setTitle(rescue.title);
+        if (rescue.description) setDescription(rescue.description);
+        if (rescue.instructions) setInstructions(rescue.instructions);
+        if (rescue.imageUrl) setImageUrl(rescue.imageUrl);
+        if (rescue.prepTime) setPrepTime(String(rescue.prepTime));
+        if (rescue.cookTime) setCookTime(String(rescue.cookTime));
+        if (rescue.servings) setServings(String(rescue.servings));
+        if (rescue.difficulty) setDifficulty(rescue.difficulty);
+        if (rescue.ingredients && Array.isArray(rescue.ingredients)) {
+          setIngredients(
+            rescue.ingredients.map((ing: any) => ({
+              name: ing.name || "",
+              amount: String(ing.amount || ""),
+              unit: ing.unit || "",
+            }))
+          );
+        }
+      } catch {
+        console.error("Failed to parse rescue data");
+      }
+    }
+  }, [searchParams]);
 
   const addIngredient = () => {
     setIngredients([...ingredients, { name: "", amount: "", unit: "" }]);

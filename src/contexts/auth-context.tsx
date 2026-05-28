@@ -29,8 +29,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     getUser();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setUser(session?.user ?? null);
+      async (_event, session) => {
+        if (session) {
+          const { data: { user } } = await supabase.auth.getUser();
+          setUser(user);
+        } else {
+          setUser(null);
+        }
         setIsLoading(false);
       }
     );
@@ -57,7 +62,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       },
     });
     
-    if (error) throw error;
+    if (error) {
+      const msg = error.message || "Sign up failed";
+      throw new Error(msg);
+    }
     
     // Check if email confirmation is required
     // If user is null after signup, email confirmation is needed

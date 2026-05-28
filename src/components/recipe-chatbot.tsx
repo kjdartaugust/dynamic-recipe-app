@@ -57,11 +57,12 @@ export function RecipeChatbot({ recipeContext }: RecipeChatbotProps) {
 
   // Fetch fridge on mount and when opened
   useEffect(() => {
+    if (!user) return;
     fetchFridgeItems();
     // Refresh every 2 minutes
     const interval = setInterval(fetchFridgeItems, 120000);
     return () => clearInterval(interval);
-  }, [fetchFridgeItems]);
+  }, [fetchFridgeItems, user]);
 
   // Generate welcome message based on fridge contents and auth status
   const getWelcomeMessage = useCallback(() => {

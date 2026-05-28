@@ -5,20 +5,14 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
 
-    // Verify user is authenticated using session (reads cookies, no network call)
-    const {
-      data: { session },
-      error: sessionError,
-    } = await supabase.auth.getSession();
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
 
-    if (sessionError || !session?.user) {
+    if (userError || !user) {
       return NextResponse.json(
         { error: "Unauthorized. Please sign in to upload images." },
         { status: 401 }
       );
     }
-
-    const user = session.user;
 
     const formData = await request.formData();
     const file = formData.get("image") as File;

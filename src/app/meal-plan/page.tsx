@@ -67,7 +67,7 @@ function addDays(dateStr: string, days: number): string {
 
 export default function MealPlannerPage() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, isLoading: isAuthLoading } = useAuth();
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [weekStart, setWeekStart] = useState(() => getWeekStart(new Date()));
@@ -79,12 +79,13 @@ export default function MealPlannerPage() {
   const [isGeneratingList, setIsGeneratingList] = useState(false);
 
   useEffect(() => {
+    if (isAuthLoading) return;
     if (!user) {
       router.push("/login");
       return;
     }
     fetchRecipes();
-  }, [user, router]);
+  }, [user, isAuthLoading, router]);
 
   useEffect(() => {
     if (user) {

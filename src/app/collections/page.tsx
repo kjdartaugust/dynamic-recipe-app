@@ -25,7 +25,7 @@ interface Collection {
 
 export default function CollectionsPage() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, isLoading: isAuthLoading } = useAuth();
   const [collections, setCollections] = useState<Collection[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
@@ -34,12 +34,13 @@ export default function CollectionsPage() {
   const [newDescription, setNewDescription] = useState("");
 
   useEffect(() => {
+    if (isAuthLoading) return;
     if (!user) {
       router.push("/login");
       return;
     }
     fetchCollections();
-  }, [user, router]);
+  }, [user, isAuthLoading, router]);
 
   const fetchCollections = async () => {
     try {

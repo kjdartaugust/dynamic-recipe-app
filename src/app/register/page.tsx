@@ -44,8 +44,9 @@ export default function RegisterPage() {
         router.push("/dashboard");
         router.refresh();
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to sign up");
+    } catch (err: any) {
+      const msg = err?.message || err?.error_description || "Failed to sign up. Please try again.";
+      setError(msg);
     } finally {
       setIsLoading(false);
     }

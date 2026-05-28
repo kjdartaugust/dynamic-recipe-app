@@ -26,14 +26,14 @@ async function ensureCategories(supabase: Awaited<ReturnType<typeof createClient
 
 export default async function CreateRecipePage() {
   const supabase = await createClient();
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { user } } = await supabase.auth.getUser();
 
-  if (!session?.user) {
+  if (!user) {
     redirect("/login");
   }
 
   // Ensure categories exist
   await ensureCategories(supabase);
 
-  return <CreateRecipeForm userId={session.user.id} />;
+  return <CreateRecipeForm userId={user.id} />;
 }

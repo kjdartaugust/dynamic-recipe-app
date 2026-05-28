@@ -3,9 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Navigation } from "@/components/navigation";
 import { AuthProvider } from "@/contexts/auth-context";
-import { ThemeProvider } from "@/contexts/theme-context";
 import { RecipeChatbot } from "@/components/recipe-chatbot";
-import { ServiceWorkerRegistration } from "@/components/service-worker-registration";
 import { PwaInstallPrompt } from "@/components/pwa-install-prompt";
 
 const geistSans = Geist({
@@ -63,9 +61,9 @@ export const metadata: Metadata = {
     },
   },
   icons: {
-    icon: "/favicon.ico",
-    shortcut: "/favicon.ico",
-    apple: "/favicon.ico",
+    icon: "/favicon.png",
+    shortcut: "/favicon.png",
+    apple: "/favicon.png",
   },
   manifest: "/site.webmanifest",
 };
@@ -76,21 +74,18 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen bg-background text-foreground`}
       >
-        <ThemeProvider>
-          <AuthProvider>
+        <AuthProvider>
           <Navigation />
           <main className="container mx-auto px-4 py-8 max-w-7xl">
             {children}
           </main>
           <RecipeChatbot />
-          <ServiceWorkerRegistration />
           <PwaInstallPrompt />
         </AuthProvider>
-        </ThemeProvider>
       </body>
     </html>
   );

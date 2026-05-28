@@ -22,7 +22,6 @@ import {
 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
-import { ThemeToggle } from "@/components/theme-toggle";
 
 export function Navigation() {
   const pathname = usePathname();

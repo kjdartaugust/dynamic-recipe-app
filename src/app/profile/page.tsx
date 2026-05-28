@@ -15,8 +15,8 @@ import {
   Flame,
   CheckCircle,
   Bell,
-  BellRing,
-  BellOff,
+  Minus,
+  Plus,
 } from "lucide-react";
 
 interface ProfileData {
@@ -30,20 +30,9 @@ interface ProfileData {
   notify_before_days: number;
 }
 
-function urlBase64ToUint8Array(base64String: string): Uint8Array {
-  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
-  const rawData = window.atob(base64);
-  const outputArray = new Uint8Array(rawData.length);
-  for (let i = 0; i < rawData.length; ++i) {
-    outputArray[i] = rawData.charCodeAt(i);
-  }
-  return outputArray;
-}
-
 export default function ProfilePage() {
   const router = useRouter();
-  const { user, signOut } = useAuth();
+  const { user, signOut, isLoading: isAuthLoading } = useAuth();
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [email, setEmail] = useState("");
   const [accountCreated, setAccountCreated] = useState("");
@@ -59,9 +48,7 @@ export default function ProfilePage() {
   const [isChangingPassword, setIsChangingPassword] = useState(false);
 
   // Notification state
-  const [pushEnabled, setPushEnabled] = useState(false);
-  const [pushSupported, setPushSupported] = useState(false);
-  const [pushSubscription, setPushSubscription] = useState<PushSubscription | null>(null);
+  const [daysInput, setDaysInput] = useState("3");
 
   // Delete account state
   const [deletePassword, setDeletePassword] = useState("");
@@ -69,21 +56,7 @@ export default function ProfilePage() {
   const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
-    if (typeof window !== "undefined" && "serviceWorker" in navigator && "PushManager" in window) {
-      setPushSupported(true);
-      navigator.serviceWorker.ready.then((reg) => {
-        reg.pushManager.getSubscription().then((sub) => {
-          setPushSubscription(sub);
-          // Fallback to profile field if no subscription object
-          setPushEnabled(!!sub || !!profile?.push_notifications);
-        });
-      });
-    } else {
-      setPushSupported(false);
-    }
-  }, [profile?.push_notifications]);
-
-  useEffect(() => {
+    if (isAuthLoading) return;
     if (!user) {
       router.push("/login");
       return;
@@ -104,6 +77,7 @@ export default function ProfilePage() {
       setProfile(data.profile);
       setEmail(data.email);
       setAccountCreated(new Date(data.created_at).toLocaleDateString());
+      setDaysInput(String(data.profile?.notify_before_days || 3));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load profile");
     } finally {
@@ -230,76 +204,52 @@ export default function ProfilePage() {
     }
   };
 
-  const handleTogglePush = async () => {
-    setError("");
-    setMessage("");
-
-    if (typeof window === "undefined" || !("serviceWorker" in navigator) || !("PushManager" in window)) {
-      setError("Push notifications are not supported on this browser.");
+  const handleDaysChange = (value: string) => {
+    // Allow empty string while typing
+    if (value === "") {
+      setDaysInput("");
       return;
     }
+    const num = parseInt(value, 10);
+    if (isNaN(num)) return;
+    const clamped = Math.max(1, Math.min(14, num));
+    setDaysInput(String(clamped));
+    if (profile) {
+      setProfile({ ...profile, notify_before_days: clamped });
+      autoSaveDays(clamped);
+    }
+  };
 
+  const incrementDays = () => {
+    const current = parseInt(daysInput, 10) || 3;
+    const next = Math.min(14, current + 1);
+    setDaysInput(String(next));
+    if (profile) {
+      setProfile({ ...profile, notify_before_days: next });
+      autoSaveDays(next);
+    }
+  };
+
+  const decrementDays = () => {
+    const current = parseInt(daysInput, 10) || 3;
+    const next = Math.max(1, current - 1);
+    setDaysInput(String(next));
+    if (profile) {
+      setProfile({ ...profile, notify_before_days: next });
+      autoSaveDays(next);
+    }
+  };
+
+  const autoSaveDays = async (days: number) => {
     try {
-      const registration = await navigator.serviceWorker.ready;
-
-      // ALWAYS check actual browser state first — never trust React state
-      const currentSub = await registration.pushManager.getSubscription();
-
-      if (currentSub) {
-        // Actually subscribed — unsubscribe
-        try {
-          await currentSub.unsubscribe();
-          await fetch("/api/notifications/push/subscribe", {
-            method: "DELETE",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ endpoint: currentSub.endpoint }),
-          });
-          setPushSubscription(null);
-          setPushEnabled(false);
-          setMessage("Push notifications disabled");
-          await fetch("/api/profile", {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ push_notifications: false }),
-          });
-        } catch (err: any) {
-          setError(err.message || "Failed to disable");
-        }
-        return;
-      }
-
-      // Not subscribed — subscribe
-      const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-      if (!vapidKey || vapidKey === "your-vapid-public-key") {
-        setError("Push notifications require VAPID keys to be configured on the server.");
-        return;
-      }
-
-      const sub = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(vapidKey) as any,
-      });
-
-      await fetch("/api/notifications/push/subscribe", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ subscription: sub.toJSON() }),
-      });
-      setPushSubscription(sub);
-      setPushEnabled(true);
-      setMessage("Push notifications enabled");
-
       await fetch("/api/profile", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ push_notifications: true }),
+        body: JSON.stringify({ notify_before_days: days }),
       });
-    } catch (err: any) {
-      if (err.name === "NotAllowedError" || err.name === "NotSupportedError") {
-        setError("Permission denied. Check browser settings > Notifications > Allow.");
-      } else {
-        setError(err.message || "Failed to toggle push notifications");
-      }
+      setMessage(`Notification threshold set to ${days} days`);
+    } catch {
+      setError("Failed to save notification settings");
     }
   };
 
@@ -456,42 +406,36 @@ export default function ProfilePage() {
                 </button>
               </div>
 
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium text-foreground">Push Notifications</p>
-                  <p className="text-sm text-muted-foreground">Browser push alerts for expiring items</p>
-                </div>
-                <button
-                  onClick={handleTogglePush}
-                  disabled={!pushSupported}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                    pushEnabled ? "bg-orange-500" : "bg-gray-200"
-                  } ${!pushSupported ? "opacity-50 cursor-not-allowed" : ""}`}
-                >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      pushEnabled ? "translate-x-6" : "translate-x-1"
-                    }`}
-                  />
-                </button>
-              </div>
-
               <div>
                 <label className="text-sm font-medium text-foreground">
                   Notify me before expiry (days)
                 </label>
-                <input
-                  type="number"
-                  min={1}
-                  max={14}
-                  value={profile?.notify_before_days || 3}
-                  onChange={(e) =>
-                    setProfile((prev) =>
-                      prev ? { ...prev, notify_before_days: parseInt(e.target.value) || 3 } : null
-                    )
-                  }
-                  className="w-full mt-1 px-4 py-2.5 border border-orange-200 rounded-xl bg-white text-foreground focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-orange-400 transition-all"
-                />
+                <div className="flex items-center gap-2 mt-1">
+                  <button
+                    type="button"
+                    onClick={decrementDays}
+                    className="p-2 rounded-lg border border-orange-200 hover:bg-orange-50 transition-colors"
+                    aria-label="Decrease days"
+                  >
+                    <Minus className="h-4 w-4 text-orange-600" />
+                  </button>
+                  <input
+                    type="number"
+                    min={1}
+                    max={14}
+                    value={daysInput}
+                    onChange={(e) => handleDaysChange(e.target.value)}
+                    className="flex-1 px-4 py-2.5 border border-orange-200 rounded-xl bg-white text-foreground text-center focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-orange-400 transition-all"
+                  />
+                  <button
+                    type="button"
+                    onClick={incrementDays}
+                    className="p-2 rounded-lg border border-orange-200 hover:bg-orange-50 transition-colors"
+                    aria-label="Increase days"
+                  >
+                    <Plus className="h-4 w-4 text-orange-600" />
+                  </button>
+                </div>
               </div>
             </div>
           </div>

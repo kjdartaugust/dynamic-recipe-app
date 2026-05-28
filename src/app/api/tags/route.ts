@@ -43,9 +43,9 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    const { data: { user } } = await supabase.auth.getUser();
 
-    if (sessionError || !session?.user) {
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
       .eq("id", recipeId)
       .single();
 
-    if (recipeError || !recipe || recipe.user_id !== session.user.id) {
+    if (recipeError || !recipe || recipe.user_id !== user.id) {
       return NextResponse.json({ error: "Unauthorized to modify this recipe" }, { status: 403 });
     }
 
@@ -126,9 +126,9 @@ export async function POST(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const supabase = await createClient();
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    const { data: { user } } = await supabase.auth.getUser();
 
-    if (sessionError || !session?.user) {
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

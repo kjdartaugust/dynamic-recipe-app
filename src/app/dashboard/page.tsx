@@ -218,13 +218,13 @@ export default async function DashboardPage({
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const supabase = await createClient();
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { user } } = await supabase.auth.getUser();
 
-  if (!session?.user) {
+  if (!user) {
     redirect("/login");
   }
 
-  const userId = session.user.id;
+  const userId = user.id;
   const params = await searchParams;
   const filter = typeof params.filter === "string" ? params.filter : "all";
   const q = typeof params.q === "string" ? params.q : undefined;
