@@ -110,7 +110,6 @@ export default function MealPlannerPage() {
   const [message, setMessage] = useState("");
   const [draggedRecipe, setDraggedRecipe] = useState<string | null>(null);
   const [selectedRecipe, setSelectedRecipe] = useState<string | null>(null);
-  const [selectedDay, setSelectedDay] = useState("monday");
   const [isGeneratingList, setIsGeneratingList] = useState(false);
 
   useEffect(() => {
@@ -453,65 +452,35 @@ export default function MealPlannerPage() {
                 <Loader2 className="h-8 w-8 text-orange-500 animate-spin" />
               </div>
             ) : (
-              <div className="space-y-4">
-                {/* Day Tabs - Visible on all screens, clickable */}
-                <div className="flex gap-2 overflow-x-auto pb-2 lg:hidden">
-                  {DAYS.map((day) => {
-                    const hasMeals = Object.keys(meals[day] || {}).length > 0;
-                    return (
-                      <button
-                        key={day}
-                        onClick={() => setSelectedDay(day)}
-                        className={cn(
-                          "flex-shrink-0 text-center py-2 px-3 rounded-xl transition-all min-w-[60px]",
-                          selectedDay === day
-                            ? "bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-md"
-                            : "bg-white border border-orange-200 text-foreground hover:border-orange-400"
-                        )}
-                      >
-                        <div className="text-xs font-medium uppercase opacity-80">
-                          {day.slice(0, 3)}
-                        </div>
-                        <div className="text-sm font-bold">
-                          {new Date(addDays(weekStart, DAYS.indexOf(day))).getDate()}
-                        </div>
-                        {hasMeals && (
-                          <div className="w-1.5 h-1.5 bg-orange-400 rounded-full mx-auto mt-1" />
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {/* Mobile: Single day view */}
-                <div className="lg:hidden">
-                  <div className="space-y-3">
-                    {/* Day header for mobile */}
-                    <div className="text-center py-3 bg-gradient-to-r from-orange-500 to-red-500 rounded-xl text-white">
-                      <div className="text-sm font-medium uppercase opacity-80">
-                        {selectedDay}
+              <div className="grid grid-cols-7 gap-2">
+                {DAYS.map((day) => (
+                  <div key={day} className="space-y-2">
+                    {/* Day Header */}
+                    <div className="text-center py-2 bg-gradient-to-r from-orange-500 to-red-500 rounded-xl text-white">
+                      <div className="text-xs font-medium uppercase opacity-80">
+                        {day.slice(0, 3)}
                       </div>
-                      <div className="text-2xl font-bold">
-                        {new Date(addDays(weekStart, DAYS.indexOf(selectedDay))).getDate()}
+                      <div className="text-lg font-bold">
+                        {new Date(addDays(weekStart, DAYS.indexOf(day))).getDate()}
                       </div>
                     </div>
 
-                    {/* Meal Slots for selected day */}
+                    {/* Meal Slots */}
                     {MEAL_TYPES.map((mealType) => {
-                      const recipeId = meals[selectedDay]?.[mealType] || null;
+                      const recipeId = meals[day]?.[mealType] || null;
                       const recipe = getRecipeById(recipeId);
 
                       return (
                         <button
-                          key={`${selectedDay}-${mealType}`}
+                          key={`${day}-${mealType}`}
                           onDragOver={handleDragOver}
-                          onDrop={() => handleDrop(selectedDay, mealType)}
+                          onDrop={() => handleDrop(day, mealType)}
                           onClick={() => {
                             if (selectedRecipe) {
                               setMeals((prev) => ({
                                 ...prev,
-                                [selectedDay]: {
-                                  ...(prev[selectedDay] || {}),
+                                [day]: {
+                                  ...(prev[day] || {}),
                                   [mealType]: selectedRecipe,
                                 },
                               }));
@@ -519,7 +488,7 @@ export default function MealPlannerPage() {
                             }
                           }}
                           className={cn(
-                            "w-full min-h-[100px] p-3 rounded-xl border-2 border-dashed transition-all text-left",
+                            "w-full min-h-[80px] p-2 rounded-xl border-2 border-dashed transition-all text-left",
                             selectedRecipe
                               ? "cursor-pointer hover:border-orange-400 hover:bg-orange-50"
                               : "",
@@ -528,329 +497,43 @@ export default function MealPlannerPage() {
                               : "bg-orange-50/50 border-orange-200"
                           )}
                         >
-                          <div className="text-xs font-medium text-muted-foreground uppercase mb-2 flex items-center gap-1">
+                          <div className="text-[10px] font-medium text-muted-foreground uppercase mb-1 flex items-center gap-1">
                             <span>{MEAL_ICONS[mealType]}</span>
                             {mealType}
                           </div>
                           {recipe ? (
                             <div className="relative group">
-                              <div className="flex items-center gap-3">
-                                <div className="w-12 h-12 rounded-lg flex-shrink-0 overflow-hidden">
+                              <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 rounded-lg flex-shrink-0 overflow-hidden">
                                   <RecipeThumbnail
                                     src={recipe.image_url}
                                     alt={recipe.title}
                                   />
                                 </div>
-                                <div className="text-sm font-medium line-clamp-2 text-foreground flex-1">
+                                <div className="text-xs font-medium line-clamp-2 text-foreground">
                                   {recipe.title}
                                 </div>
                               </div>
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handleRemoveMeal(selectedDay, mealType);
+                                  handleRemoveMeal(day, mealType);
                                 }}
-                                className="absolute -top-2 -right-2 p-1 bg-red-100 text-red-500 rounded-full hover:bg-red-200"
+                                className="absolute -top-1 -right-1 p-0.5 bg-red-100 text-red-500 rounded-full hover:bg-red-200"
                               >
-                                <Trash2 className="h-3.5 w-3.5" />
+                                <Trash2 className="h-3 w-3" />
                               </button>
                             </div>
                           ) : (
-                            <div className="text-sm text-muted-foreground/60 text-center py-4">
-                              {selectedRecipe ? "Tap to assign recipe" : "Tap a recipe, then tap here"}
+                            <div className="text-xs text-muted-foreground/60 text-center py-2">
+                              {selectedRecipe ? "Click to assign" : "Drop recipe"}
                             </div>
                           )}
                         </button>
                       );
                     })}
                   </div>
-                </div>
-
-                {/* Desktop: 7-column grid */}
-                <div className="hidden lg:grid grid-cols-7 gap-2">
-                  {DAYS.map((day) => (
-                    <div key={day} className="space-y-2">
-                      {/* Day Header */}
-                      <div className="text-center py-2 bg-gradient-to-r from-orange-500 to-red-500 rounded-xl text-white">
-                        <div className="text-xs font-medium uppercase opacity-80">
-                          {day.slice(0, 3)}
-                        </div>
-                        <div className="text-lg font-bold">
-                          {new Date(addDays(weekStart, DAYS.indexOf(day))).getDate()}
-                        </div>
-                      </div>
-
-                      {/* Meal Slots */}
-                      {MEAL_TYPES.map((mealType) => {
-                        const recipeId = meals[day]?.[mealType] || null;
-                        const recipe = getRecipeById(recipeId);
-
-                        return (
-                          <button
-                            key={`${day}-${mealType}`}
-                            onDragOver={handleDragOver}
-                            onDrop={() => handleDrop(day, mealType)}
-                            onClick={() => {
-                              if (selectedRecipe) {
-                                setMeals((prev) => ({
-                                  ...prev,
-                                  [day]: {
-                                    ...(prev[day] || {}),
-                                    [mealType]: selectedRecipe,
-                                  },
-                                }));
-                                setSelectedRecipe(null);
-                              }
-                            }}
-                            className={cn(
-                              "w-full min-h-[80px] p-2 rounded-xl border-2 border-dashed transition-all text-left",
-                              selectedRecipe
-                                ? "cursor-pointer hover:border-orange-400 hover:bg-orange-50"
-                                : "",
-                              recipe
-                                ? "bg-white border-orange-300 shadow-sm"
-                                : "bg-orange-50/50 border-orange-200"
-                            )}
-                          >
-                            <div className="text-[10px] font-medium text-muted-foreground uppercase mb-1 flex items-center gap-1">
-                              <span>{MEAL_ICONS[mealType]}</span>
-                              {mealType}
-                            </div>
-                            {recipe ? (
-                              <div className="relative group">
-                                <div className="flex items-center gap-2">
-                                  <div className="w-8 h-8 rounded-lg flex-shrink-0 overflow-hidden">
-                                    <RecipeThumbnail
-                                      src={recipe.image_url}
-                                      alt={recipe.title}
-                                    />
-                                  </div>
-                                  <div className="text-xs font-medium line-clamp-2 text-foreground">
-                                    {recipe.title}
-                                  </div>
-                                </div>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleRemoveMeal(day, mealType);
-                                  }}
-                                  className="absolute -top-1 -right-1 p-0.5 bg-red-100 text-red-500 rounded-full hover:bg-red-200"
-                                >
-                                  <Trash2 className="h-3 w-3" />
-                                </button>
-                              </div>
-                            ) : (
-                              <div className="text-xs text-muted-foreground/60 text-center py-2">
-                                {selectedRecipe ? "Click to assign" : "Drop recipe"}
-                              </div>
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-            ) : (
-              <div className="space-y-4">
-                {/* Day Tabs - Visible on all screens, clickable */}
-                <div className="flex gap-2 overflow-x-auto pb-2 lg:hidden">
-                  {DAYS.map((day) => {
-                    const hasMeals = Object.keys(meals[day] || {}).length > 0;
-                    return (
-                      <button
-                        key={day}
-                        onClick={() => setSelectedDay(day)}
-                        className={cn(
-                          "flex-shrink-0 text-center py-2 px-3 rounded-xl transition-all min-w-[60px]",
-                          selectedDay === day
-                            ? "bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-md"
-                            : "bg-white border border-orange-200 text-foreground hover:border-orange-400"
-                        )}
-                      >
-                        <div className="text-xs font-medium uppercase opacity-80">
-                          {day.slice(0, 3)}
-                        </div>
-                        <div className="text-sm font-bold">
-                          {new Date(addDays(weekStart, DAYS.indexOf(day))).getDate()}
-                        </div>
-                        {hasMeals && (
-                          <div className="w-1.5 h-1.5 bg-orange-400 rounded-full mx-auto mt-1" />
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {/* Mobile: Single day view */}
-                <div className="lg:hidden">
-                  <div className="space-y-3">
-                    {/* Day header for mobile */}
-                    <div className="text-center py-3 bg-gradient-to-r from-orange-500 to-red-500 rounded-xl text-white">
-                      <div className="text-sm font-medium uppercase opacity-80">
-                        {selectedDay}
-                      </div>
-                      <div className="text-2xl font-bold">
-                        {new Date(addDays(weekStart, DAYS.indexOf(selectedDay))).getDate()}
-                      </div>
-                    </div>
-
-                    {/* Meal Slots for selected day */}
-                    {MEAL_TYPES.map((mealType) => {
-                      const recipeId = meals[selectedDay]?.[mealType] || null;
-                      const recipe = getRecipeById(recipeId);
-
-                      return (
-                        <button
-                          key={`${selectedDay}-${mealType}`}
-                          onDragOver={handleDragOver}
-                          onDrop={() => handleDrop(selectedDay, mealType)}
-                          onClick={() => {
-                            if (selectedRecipe) {
-                              setMeals((prev) => ({
-                                ...prev,
-                                [selectedDay]: {
-                                  ...(prev[selectedDay] || {}),
-                                  [mealType]: selectedRecipe,
-                                },
-                              }));
-                              setSelectedRecipe(null);
-                            }
-                          }}
-                          className={cn(
-                            "w-full min-h-[100px] p-3 rounded-xl border-2 border-dashed transition-all text-left",
-                            selectedRecipe
-                              ? "cursor-pointer hover:border-orange-400 hover:bg-orange-50"
-                              : "",
-                            recipe
-                              ? "bg-white border-orange-300 shadow-sm"
-                              : "bg-orange-50/50 border-orange-200"
-                          )}
-                        >
-                          <div className="text-xs font-medium text-muted-foreground uppercase mb-2 flex items-center gap-1">
-                            <span>{MEAL_ICONS[mealType]}</span>
-                            {mealType}
-                          </div>
-                          {recipe ? (
-                            <div className="relative group">
-                              <div className="flex items-center gap-3">
-                                <div className="w-12 h-12 rounded-lg flex-shrink-0 overflow-hidden">
-                                  <RecipeThumbnail
-                                    src={recipe.image_url}
-                                    alt={recipe.title}
-                                  />
-                                </div>
-                                <div className="text-sm font-medium line-clamp-2 text-foreground flex-1">
-                                  {recipe.title}
-                                </div>
-                              </div>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleRemoveMeal(selectedDay, mealType);
-                                }}
-                                className="absolute -top-2 -right-2 p-1 bg-red-100 text-red-500 rounded-full hover:bg-red-200"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="text-sm text-muted-foreground/60 text-center py-4">
-                              {selectedRecipe ? "Tap to assign recipe" : "Tap a recipe, then tap here"}
-                            </div>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Desktop: 7-column grid */}
-                <div className="hidden lg:grid grid-cols-7 gap-2">
-                  {DAYS.map((day) => (
-                    <div key={day} className="space-y-2">
-                      {/* Day Header */}
-                      <div className="text-center py-2 bg-gradient-to-r from-orange-500 to-red-500 rounded-xl text-white">
-                        <div className="text-xs font-medium uppercase opacity-80">
-                          {day.slice(0, 3)}
-                        </div>
-                        <div className="text-lg font-bold">
-                          {new Date(addDays(weekStart, DAYS.indexOf(day))).getDate()}
-                        </div>
-                      </div>
-
-                      {/* Meal Slots */}
-                      {MEAL_TYPES.map((mealType) => {
-                        const recipeId = meals[day]?.[mealType] || null;
-                        const recipe = getRecipeById(recipeId);
-
-                        return (
-                          <button
-                            key={`${day}-${mealType}`}
-                            onDragOver={handleDragOver}
-                            onDrop={() => handleDrop(day, mealType)}
-                            onClick={() => {
-                              if (selectedRecipe) {
-                                setMeals((prev) => ({
-                                  ...prev,
-                                  [day]: {
-                                    ...(prev[day] || {}),
-                                    [mealType]: selectedRecipe,
-                                  },
-                                }));
-                                setSelectedRecipe(null);
-                              }
-                            }}
-                            className={cn(
-                              "w-full min-h-[80px] p-2 rounded-xl border-2 border-dashed transition-all text-left",
-                              selectedRecipe
-                                ? "cursor-pointer hover:border-orange-400 hover:bg-orange-50"
-                                : "",
-                              recipe
-                                ? "bg-white border-orange-300 shadow-sm"
-                                : "bg-orange-50/50 border-orange-200"
-                            )}
-                          >
-                            <div className="text-[10px] font-medium text-muted-foreground uppercase mb-1 flex items-center gap-1">
-                              <span>{MEAL_ICONS[mealType]}</span>
-                              {mealType}
-                            </div>
-                            {recipe ? (
-                              <div className="relative group">
-                                <div className="flex items-center gap-2">
-                                  <div className="w-8 h-8 rounded-lg flex-shrink-0 overflow-hidden">
-                                    <RecipeThumbnail
-                                      src={recipe.image_url}
-                                      alt={recipe.title}
-                                    />
-                                  </div>
-                                  <div className="text-xs font-medium line-clamp-2 text-foreground">
-                                    {recipe.title}
-                                  </div>
-                                </div>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleRemoveMeal(day, mealType);
-                                  }}
-                                  className="absolute -top-1 -right-1 p-0.5 bg-red-100 text-red-500 rounded-full hover:bg-red-200"
-                                >
-                                  <Trash2 className="h-3 w-3" />
-                                </button>
-                              </div>
-                            ) : (
-                              <div className="text-xs text-muted-foreground/60 text-center py-2">
-                                {selectedRecipe ? "Click to assign" : "Drop recipe"}
-                              </div>
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  ))}
-                </div>
+                ))}
               </div>
             )}
           </div>
