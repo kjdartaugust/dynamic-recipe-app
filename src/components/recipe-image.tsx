@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 
 interface RecipeImageProps {
-  src: string;
+  src: string | null;
   alt: string;
   className?: string;
   tags?: string[];
@@ -166,6 +166,25 @@ export function RecipeImage({ src, alt, className = "", tags = [] }: RecipeImage
     setStatus("loading");
     setRetryCount(0);
   }, [src]);
+
+  // If no image URL provided, show fallback immediately
+  if (!src) {
+    return (
+      <div
+        className={`relative flex flex-col items-center justify-center bg-gradient-to-br ${config.gradient} ${className}`}
+        style={{
+          backgroundImage: config.pattern,
+          backgroundSize: "20px 20px",
+        }}
+      >
+        <div
+          className={`inline-flex items-center justify-center p-4 ${config.bgColor} rounded-2xl shadow-sm border border-white/50 backdrop-blur-sm`}
+        >
+          <span className={config.iconColor}>{config.icon}</span>
+        </div>
+      </div>
+    );
+  }
 
   if (status === "error") {
     return (

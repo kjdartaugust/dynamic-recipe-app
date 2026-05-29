@@ -5,6 +5,45 @@ const GROQ_API_KEY = process.env.GROQ_API_KEY || "";
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 const MODEL = "llama-3.3-70b-versatile";
 
+const UNSPLASH_ACCESS_KEY = process.env.UNSPLASH_ACCESS_KEY || "";
+const UNSPLASH_URL = "https://api.unsplash.com/search/photos";
+
+// Fetch a food photo from Unsplash based on recipe title
+async function getUnsplashImage(title: string): Promise<string | null> {
+  if (!UNSPLASH_ACCESS_KEY) {
+    console.warn("[UNSPLASH] No access key configured");
+    return null;
+  }
+
+  try {
+    const query = encodeURIComponent(`${title} food`);
+    const url = `${UNSPLASH_URL}?query=${query}&per_page=1&orientation=landscape&client_id=${UNSPLASH_ACCESS_KEY}`;
+
+    const response = await fetch(url, {
+      headers: {
+        "Accept-Version": "v1",
+      },
+    });
+
+    if (!response.ok) {
+      console.error("[UNSPLASH] API error:", response.status);
+      return null;
+    }
+
+    const data = await response.json();
+
+    if (data.results && data.results.length > 0) {
+      // Use the small image URL (400px wide, good for cards)
+      return data.results[0].urls.small;
+    }
+
+    return null;
+  } catch (error) {
+    console.error("[UNSPLASH] Error fetching image:", error);
+    return null;
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
     if (!GROQ_API_KEY) {
@@ -56,8 +95,7 @@ Return ONLY a valid JSON array in this exact format:
     "cookTime": 20,
     "servings": 4,
     "difficulty": "Easy",
-    "tags": ["tag1", "tag2"],
-    "imagePrompt": "professional food photography of recipe name on rustic plate, warm lighting, overhead shot"
+    "tags": ["tag1", "tag2"]
   }
 ]
 
@@ -107,11 +145,16 @@ Rules:
       }
     }
 
-    // Add AI image URLs using pollinations.ai
-    const suggestionsWithImages = suggestions.map((s: any) => ({
-      ...s,
-      imageUrl: `https://image.pollinations.ai/prompt/${encodeURIComponent(s.imagePrompt)}?width=400&height=300&seed=${Math.floor(Math.random() * 10000)}&nologo=true`,
-    }));
+    // Fetch real food photos from Unsplash for each suggestion
+    const suggestionsWithImages = await Promise.all(
+      suggestions.map(async (s: any) => {
+        const imageUrl = await getUnsplashImage(s.title);
+        return {
+          ...s,
+          imageUrl,
+        };
+      })
+    );
 
     return NextResponse.json({ suggestions: suggestionsWithImages });
   } catch (error) {
