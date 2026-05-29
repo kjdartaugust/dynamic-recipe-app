@@ -33,8 +33,8 @@ async function getUnsplashImage(title: string): Promise<string | null> {
     const data = await response.json();
 
     if (data.results && data.results.length > 0) {
-      // Use the small image URL (400px wide, good for cards)
-      return data.results[0].urls.small;
+      // Use the regular image URL (1080px wide, high quality)
+      return data.results[0].urls.regular;
     }
 
     return null;
