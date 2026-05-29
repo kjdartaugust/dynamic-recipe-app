@@ -18,7 +18,22 @@ import {
   Utensils,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { RecipeImage } from "@/components/recipe-image";
+
+// Simple thumbnail with fallback for small containers
+function RecipeThumbnail({ src, alt, className = "" }: { src: string | null; alt: string; className?: string }) {
+  if (src) {
+    return <img src={src} alt={alt} className={`w-full h-full object-cover ${className}`} />;
+  }
+  // Fallback: colored circle with first letter
+  const letter = alt.charAt(0).toUpperCase();
+  const colors = ["bg-orange-200", "bg-red-200", "bg-amber-200", "bg-yellow-200", "bg-green-200", "bg-teal-200", "bg-blue-200", "bg-indigo-200", "bg-purple-200", "bg-pink-200"];
+  const color = colors[alt.length % colors.length];
+  return (
+    <div className={`w-full h-full flex items-center justify-center ${color} ${className}`}>
+      <span className="text-xs font-bold text-gray-600">{letter}</span>
+    </div>
+  );
+}
 
 interface Recipe {
   id: string;
@@ -345,10 +360,9 @@ export default function MealPlannerPage() {
                       )}
                     >
                       <div className="w-10 h-10 rounded-lg flex-shrink-0 overflow-hidden">
-                        <RecipeImage
+                        <RecipeThumbnail
                           src={recipe.image_url}
                           alt={recipe.title}
-                          className="w-full h-full"
                         />
                       </div>
                       <span className="text-sm font-medium line-clamp-1">
@@ -456,10 +470,9 @@ export default function MealPlannerPage() {
                             <div className="relative group">
                               <div className="flex items-center gap-2">
                                 <div className="w-8 h-8 rounded-lg flex-shrink-0 overflow-hidden">
-                                  <RecipeImage
+                                  <RecipeThumbnail
                                     src={recipe.image_url}
                                     alt={recipe.title}
-                                    className="w-full h-full"
                                   />
                                 </div>
                                 <div className="text-xs font-medium line-clamp-2 text-foreground">
