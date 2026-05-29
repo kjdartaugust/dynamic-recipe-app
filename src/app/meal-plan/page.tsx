@@ -19,7 +19,6 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { RecipeImage } from "@/components/recipe-image";
-import { RecipeImage } from "@/components/recipe-image";
 
 interface Recipe {
   id: string;
