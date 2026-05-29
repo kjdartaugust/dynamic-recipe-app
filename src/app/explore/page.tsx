@@ -16,6 +16,7 @@ import {
   Calendar,
   Lock,
 } from "lucide-react";
+import { RecipeImage } from "@/components/recipe-image";
 
 interface PublicRecipe {
   id: string;
@@ -222,17 +223,11 @@ function RecipeCard({ recipe }: { recipe: PublicRecipe }) {
     <Link href={`/recipes/${recipe.id}`} className="group">
       <article className="card-gradient rounded-xl overflow-hidden h-full flex flex-col">
         <div className="aspect-video bg-gradient-to-br from-orange-50 to-amber-50 relative overflow-hidden">
-          {recipe.image_url ? (
-            <img
-              src={recipe.image_url}
-              alt={recipe.title}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-            />
-          ) : (
-            <div className="flex items-center justify-center h-full">
-              <Flame className="h-14 w-14 text-orange-200 fire-icon" />
-            </div>
-          )}
+          <RecipeImage
+            src={recipe.image_url}
+            alt={recipe.title}
+            className="h-full"
+          />
           {recipe.category && (
             <div className="absolute top-3 left-3">
               <span className="px-3 py-1 text-xs font-semibold bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-full shadow-md">
