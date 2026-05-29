@@ -21,11 +21,6 @@ export const viewport = {
   initialScale: 1,
 };
 
-export const viewport = {
-  width: "device-width",
-  initialScale: 1,
-};
-
 export const metadata: Metadata = {
   title: {
     default: "Dynamic Recipe App - AI-Powered Recipe Management",
