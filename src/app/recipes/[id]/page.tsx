@@ -9,7 +9,9 @@ import { RecipeRatings } from "@/components/recipe-ratings";
 import { VisibilityToggle } from "@/components/visibility-toggle";
 import { RecipeInstructions } from "@/components/recipe-instructions";
 import { RecipeCacheWrapper } from "@/components/recipe-cache-wrapper";
-import { ArrowLeft, Clock, Flame, Dumbbell, Wheat as WheatIcon, Droplets, Tag as TagIcon, Star } from "lucide-react";
+import { ArrowLeft, Clock, Dumbbell, Wheat as WheatIcon, Droplets, Tag as TagIcon, Star } from "lucide-react";
+import { RecipeImage } from "@/components/recipe-image";
+import { RecipeImage } from "@/components/recipe-image";
 import { AddToCollectionButton } from "@/components/add-to-collection";
 
 interface RecipePageProps {
@@ -93,7 +95,7 @@ export default async function RecipePage({ params }: RecipePageProps) {
       {/* Back Button */}
       <Link
         href="/dashboard"
-        className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-orange-600 transition-colors"
+        className="inline-flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:text-orange-600 transition-colors rounded-lg hover:bg-orange-50"
       >
         <ArrowLeft className="h-4 w-4" />
         Back to Dashboard
@@ -102,30 +104,11 @@ export default async function RecipePage({ params }: RecipePageProps) {
       {/* Header */}
       <div className="space-y-6">
         <div className="aspect-video rounded-2xl overflow-hidden gradient-bg-hero relative">
-          {recipe.image_url ? (
-            <img
-              src={recipe.image_url}
-              alt={recipe.title}
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div className="flex items-center justify-center h-full">
-              <Flame className="h-20 w-20 text-white/40 fire-icon-hover" />
-            </div>
-          )}
-          {/* Gradient overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
-          
-          {/* Title overlay */}
-          <div className="absolute bottom-0 left-0 right-0 p-6">
-            <h1 className="text-3xl md:text-4xl font-bold text-white drop-shadow-lg">
-              {recipe.title}
-            </h1>
-            {recipe.profiles && (
-              <p className="text-white/80 mt-1 text-sm">
-                By {recipe.profiles.username}
-              </p>
-            )}
+          <RecipeImage
+            src={recipe.image_url}
+            alt={recipe.title}
+            className="h-full"
+          />
           </div>
         </div>
 
