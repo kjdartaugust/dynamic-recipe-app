@@ -214,8 +214,9 @@ export default function KitchenHubPage() {
       });
       const data = await response.json();
       if (response.ok && data.recipe) {
+        const rescueData = { ...data.recipe, imageUrl: suggestion.imageUrl };
         const params = new URLSearchParams();
-        params.set("rescue", JSON.stringify(data.recipe));
+        params.set("rescue", JSON.stringify(rescueData));
         router.push(`/recipes/create?${params.toString()}`);
       }
     } finally {
