@@ -207,7 +207,7 @@ export function RecipeImage({ src, alt, className = "", tags = [] }: RecipeImage
   const imgSrc = retryCount > 0 ? `${src}&retry=${retryCount}` : src;
 
   return (
-    <div className={`relative overflow-hidden ${className}`}>
+    <div className={`relative overflow-hidden w-full ${className}`}>
       {status === "loading" && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-orange-50 to-red-50 z-10">
           <div className="space-y-3 text-center">
@@ -225,7 +225,7 @@ export function RecipeImage({ src, alt, className = "", tags = [] }: RecipeImage
         key={imgSrc}
         src={imgSrc}
         alt={alt}
-        className={`w-full h-full object-cover transition-opacity duration-500 ${
+        className={`w-full h-full object-cover transition-all duration-500 group-hover:scale-105 ${
           status === "success" ? "opacity-100" : "opacity-0"
         }`}
         onLoad={handleLoad}

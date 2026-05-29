@@ -539,7 +539,7 @@ export default function KitchenHubPage() {
                       <RecipeImage
                         src={suggestion.imageUrl}
                         alt={suggestion.title}
-                        className="h-full group-hover:scale-105 transition-transform duration-500"
+                        className="h-full"
                       />
                       <div className="absolute top-3 left-3 flex gap-2">
                         {suggestion.tags.slice(0, 2).map((tag) => (
