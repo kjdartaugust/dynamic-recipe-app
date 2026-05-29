@@ -1,6 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 
+const UNSPLASH_ACCESS_KEY = process.env.UNSPLASH_ACCESS_KEY || "";
+
+async function getUnsplashImage(title: string): Promise<string | null> {
+  if (!UNSPLASH_ACCESS_KEY) return null;
+  try {
+    const query = encodeURIComponent(`${title} food`);
+    const response = await fetch(
+      `https://api.unsplash.com/search/photos?query=${query}&per_page=1&orientation=landscape&client_id=${UNSPLASH_ACCESS_KEY}`,
+      { headers: { "Accept-Version": "v1" } }
+    );
+    if (!response.ok) return null;
+    const data = await response.json();
+    return data.results?.[0]?.urls?.regular || null;
+  } catch {
+    return null;
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -93,7 +111,7 @@ export async function GET(request: NextRequest) {
     const categoryMap = new Map(categories?.map((c) => [c.id, c]) || []);
 
     // Enrich recipes with author, rating, and category info
-    const enrichedRecipes =
+    let enrichedRecipes =
       recipes?.map((recipe) => ({
         ...recipe,
         author: profileMap.get(recipe.user_id) || null,
@@ -102,6 +120,22 @@ export async function GET(request: NextRequest) {
           ? categoryMap.get(recipe.category_id) || null
           : null,
       })) || [];
+
+    // Fetch Unsplash images for recipes without images
+    const recipesWithoutImages = enrichedRecipes.filter((r) => !r.image_url);
+    if (recipesWithoutImages.length > 0) {
+      const imagePromises = recipesWithoutImages.map(async (recipe) => {
+        const imageUrl = await getUnsplashImage(recipe.title);
+        return { id: recipe.id, imageUrl };
+      });
+      const imageResults = await Promise.all(imagePromises);
+      const imageMap = new Map(imageResults.map((r) => [r.id, r.imageUrl]));
+      
+      enrichedRecipes = enrichedRecipes.map((recipe) => ({
+        ...recipe,
+        image_url: recipe.image_url || imageMap.get(recipe.id) || null,
+      }));
+    }
 
     // If sorting by popularity, do it client-side
     let sortedRecipes = enrichedRecipes;
