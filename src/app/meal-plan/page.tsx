@@ -18,6 +18,8 @@ import {
   Utensils,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { RecipeImage } from "@/components/recipe-image";
+import { RecipeImage } from "@/components/recipe-image";
 
 interface Recipe {
   id: string;
@@ -76,6 +78,7 @@ export default function MealPlannerPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [draggedRecipe, setDraggedRecipe] = useState<string | null>(null);
+  const [selectedRecipe, setSelectedRecipe] = useState<string | null>(null);
   const [isGeneratingList, setIsGeneratingList] = useState(false);
 
   useEffect(() => {
@@ -334,18 +337,20 @@ export default function MealPlannerPage() {
                       key={recipe.id}
                       draggable
                       onDragStart={() => handleDragStart(recipe.id)}
-                      className="flex items-center gap-3 p-2.5 bg-white rounded-xl border border-orange-100 cursor-grab hover:shadow-md hover:border-orange-300 transition-all active:cursor-grabbing"
+                      onClick={() => setSelectedRecipe(selectedRecipe === recipe.id ? null : recipe.id)}
+                      className={cn(
+                        "flex items-center gap-3 p-2.5 rounded-xl border cursor-grab hover:shadow-md transition-all active:cursor-grabbing",
+                        selectedRecipe === recipe.id
+                          ? "bg-orange-50 border-orange-400 ring-2 ring-orange-200"
+                          : "bg-white border-orange-100 hover:border-orange-300"
+                      )}
                     >
-                      <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-orange-100 to-amber-100 flex items-center justify-center flex-shrink-0 overflow-hidden">
-                        {recipe.image_url ? (
-                          <img
-                            src={recipe.image_url}
-                            alt=""
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <Flame className="h-5 w-5 text-orange-300" />
-                        )}
+                      <div className="w-10 h-10 rounded-lg flex-shrink-0 overflow-hidden">
+                        <RecipeImage
+                          src={recipe.image_url}
+                          alt={recipe.title}
+                          className="w-full h-full"
+                        />
                       </div>
                       <span className="text-sm font-medium line-clamp-1">
                         {recipe.title}
@@ -418,15 +423,30 @@ export default function MealPlannerPage() {
                       const recipe = getRecipeById(recipeId);
 
                       return (
-                        <div
+                        <button
                           key={`${day}-${mealType}`}
                           onDragOver={handleDragOver}
                           onDrop={() => handleDrop(day, mealType)}
+                          onClick={() => {
+                            if (selectedRecipe) {
+                              setMeals((prev) => ({
+                                ...prev,
+                                [day]: {
+                                  ...(prev[day] || {}),
+                                  [mealType]: selectedRecipe,
+                                },
+                              }));
+                              setSelectedRecipe(null);
+                            }
+                          }}
                           className={cn(
-                            "min-h-[80px] p-2 rounded-xl border-2 border-dashed transition-all",
+                            "w-full min-h-[80px] p-2 rounded-xl border-2 border-dashed transition-all text-left",
+                            selectedRecipe
+                              ? "cursor-pointer hover:border-orange-400 hover:bg-orange-50"
+                              : "",
                             recipe
                               ? "bg-white border-orange-300 shadow-sm"
-                              : "bg-orange-50/50 border-orange-200 hover:border-orange-300 hover:bg-orange-50"
+                              : "bg-orange-50/50 border-orange-200"
                           )}
                         >
                           <div className="text-[10px] font-medium text-muted-foreground uppercase mb-1 flex items-center gap-1">
@@ -435,22 +455,34 @@ export default function MealPlannerPage() {
                           </div>
                           {recipe ? (
                             <div className="relative group">
-                              <div className="text-xs font-medium line-clamp-2 text-foreground">
-                                {recipe.title}
+                              <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 rounded-lg flex-shrink-0 overflow-hidden">
+                                  <RecipeImage
+                                    src={recipe.image_url}
+                                    alt={recipe.title}
+                                    className="w-full h-full"
+                                  />
+                                </div>
+                                <div className="text-xs font-medium line-clamp-2 text-foreground">
+                                  {recipe.title}
+                                </div>
                               </div>
                               <button
-                                onClick={() => handleRemoveMeal(day, mealType)}
-                                className="absolute -top-1 -right-1 p-0.5 bg-red-100 text-red-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-200"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRemoveMeal(day, mealType);
+                                }}
+                                className="absolute -top-1 -right-1 p-0.5 bg-red-100 text-red-500 rounded-full hover:bg-red-200"
                               >
                                 <Trash2 className="h-3 w-3" />
                               </button>
                             </div>
                           ) : (
                             <div className="text-xs text-muted-foreground/60 text-center py-2">
-                              Drop recipe
+                              {selectedRecipe ? "Click to assign" : "Drop recipe"}
                             </div>
                           )}
-                        </div>
+                        </button>
                       );
                     })}
                   </div>
