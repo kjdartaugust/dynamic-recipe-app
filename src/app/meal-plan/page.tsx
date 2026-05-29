@@ -19,6 +19,23 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+const UNSPLASH_ACCESS_KEY = process.env.NEXT_PUBLIC_UNSPLASH_ACCESS_KEY || "";
+
+async function getUnsplashImage(title: string): Promise<string | null> {
+  if (!UNSPLASH_ACCESS_KEY) return null;
+  try {
+    const query = encodeURIComponent(`${title} food`);
+    const response = await fetch(
+      `https://api.unsplash.com/search/photos?query=${query}&per_page=1&orientation=landscape&client_id=${UNSPLASH_ACCESS_KEY}`
+    );
+    if (!response.ok) return null;
+    const data = await response.json();
+    return data.results?.[0]?.urls?.small || null;
+  } catch {
+    return null;
+  }
+}
+
 // Simple thumbnail with fallback for small containers
 function RecipeThumbnail({ src, alt, className = "" }: { src: string | null; alt: string; className?: string }) {
   if (src) {
@@ -125,6 +142,24 @@ export default function MealPlannerPage() {
           (r: Recipe, i: number, arr: Recipe[]) =>
             arr.findIndex((x) => x.id === r.id) === i
         );
+        
+        // Fetch Unsplash images for recipes without images
+        const recipesWithoutImages = unique.filter((r: Recipe) => !r.image_url);
+        if (recipesWithoutImages.length > 0) {
+          const imagePromises = recipesWithoutImages.map(async (recipe: Recipe) => {
+            const imageUrl = await getUnsplashImage(recipe.title);
+            return { id: recipe.id, imageUrl };
+          });
+          const imageResults = await Promise.all(imagePromises);
+          const imageMap = new Map(imageResults.map((r) => [r.id, r.imageUrl]));
+          
+          unique.forEach((recipe: Recipe) => {
+            if (!recipe.image_url) {
+              recipe.image_url = imageMap.get(recipe.id) || null;
+            }
+          });
+        }
+        
         setRecipes(unique);
       }
     } catch (error) {
