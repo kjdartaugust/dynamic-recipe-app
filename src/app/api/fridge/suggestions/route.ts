@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 
-const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || "";
-const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-const MODEL = "google/gemini-2.0-flash-001";
+const GROQ_API_KEY = process.env.GROQ_API_KEY || "";
+const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
+const MODEL = "llama-3.3-70b-versatile";
 
 export async function GET(request: NextRequest) {
   try {
-    if (!OPENROUTER_API_KEY) {
+    if (!GROQ_API_KEY) {
       return NextResponse.json(
-        { error: "OpenRouter API key not configured" },
+        { error: "Groq API key not configured" },
         { status: 500 }
       );
     }
@@ -67,10 +67,10 @@ Rules:
 - Be creative with combinations
 - Return ONLY valid JSON, no markdown or explanations`;
 
-    const response = await fetch(OPENROUTER_URL, {
+    const response = await fetch(GROQ_URL, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+        Authorization: `Bearer ${GROQ_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -83,7 +83,7 @@ Rules:
 
     if (!response.ok) {
       const errorData = await response.json();
-      console.error("[AI SUGGESTIONS] OpenRouter error:", errorData);
+      console.error("[AI SUGGESTIONS] Groq error:", errorData);
       return NextResponse.json({ error: "AI service error" }, { status: 500 });
     }
 

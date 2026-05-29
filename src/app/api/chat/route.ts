@@ -3,12 +3,12 @@ import { createClient } from "@/lib/supabase-server";
 
 export async function POST(request: NextRequest) {
   try {
-    const apiKey = process.env.OPENROUTER_API_KEY;
+    const apiKey = process.env.GROQ_API_KEY;
     
     if (!apiKey) {
-      console.error("[CHAT] OPENROUTER_API_KEY is missing");
+      console.error("[CHAT] GROQ_API_KEY is missing");
       return NextResponse.json(
-        { error: "Server config error: OPENROUTER_API_KEY not set" },
+        { error: "Server config error: GROQ_API_KEY not set" },
         { status: 503 }
       );
     }
@@ -50,18 +50,16 @@ Guidelines:
 - Format ingredients and steps clearly with bullet points when helpful
 - If the user doesn't specify ingredients, proactively ask what's in their fridge`;
 
-    console.log("[CHAT] Calling OpenRouter with fridge context:", !!fridgeContext, "recipe context:", !!recipeContext);
+    console.log("[CHAT] Calling Groq with fridge context:", !!fridgeContext, "recipe context:", !!recipeContext);
 
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${apiKey}`,
         "Content-Type": "application/json",
-        "HTTP-Referer": "https://dynamic-recipe-app.vercel.app",
-        "X-Title": "Dynamic Recipe App",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.0-flash-001",
+        model: "llama-3.3-70b-versatile",
         messages: [
           { role: "system", content: systemPrompt },
           ...messages,
@@ -73,7 +71,7 @@ Guidelines:
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("[CHAT] OpenRouter error:", response.status, errorText);
+      console.error("[CHAT] Groq error:", response.status, errorText);
       return NextResponse.json(
         { error: `AI service error: ${response.status}` },
         { status: 503 }

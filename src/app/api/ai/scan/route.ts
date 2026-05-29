@@ -1,12 +1,43 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createRateLimiter } from "@/lib/rate-limit";
 
-const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || "";
-const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-const MODEL = "google/gemini-2.0-flash-001";
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
+const GEMINI_MODEL = "gemini-2.5-flash";
+const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
 // Rate limit: 5 requests per minute per IP
 const rateLimiter = createRateLimiter(5, 60 * 1000);
+
+// Retry helper with exponential backoff
+async function fetchWithRetry(
+  url: string,
+  options: RequestInit,
+  maxRetries = 3
+): Promise<Response> {
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const response = await fetch(url, options);
+
+      // If rate limited or service unavailable, retry
+      if (response.status === 429 || response.status === 503) {
+        const delay = Math.pow(2, attempt) * 1000; // 1s, 2s, 4s
+        console.log(`[SCAN] Retry ${attempt + 1}/${maxRetries} after ${delay}ms`);
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        continue;
+      }
+
+      return response;
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error("Unknown error");
+      const delay = Math.pow(2, attempt) * 1000;
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+
+  throw lastError || new Error("Max retries exceeded");
+}
 
 export async function POST(request: NextRequest) {
   // Check rate limit
@@ -16,9 +47,9 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    if (!OPENROUTER_API_KEY) {
+    if (!GEMINI_API_KEY) {
       return NextResponse.json(
-        { error: "OpenRouter API key is not configured" },
+        { error: "Gemini API key is not configured" },
         { status: 500 }
       );
     }
@@ -53,7 +84,6 @@ export async function POST(request: NextRequest) {
     const bytes = await imageFile.arrayBuffer();
     const buffer = Buffer.from(bytes);
     const base64Image = buffer.toString("base64");
-    const imageDataUrl = `data:${imageFile.type};base64,${base64Image}`;
 
     // Prompt for ingredient extraction
     const prompt = `
@@ -78,34 +108,48 @@ export async function POST(request: NextRequest) {
       - Return ONLY the JSON, no markdown, no explanations
     `;
 
-    const response = await fetch(OPENROUTER_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        messages: [
-          {
-            role: "user",
-            content: [
-              { type: "text", text: prompt },
-              {
-                type: "image_url",
-                image_url: {
-                  url: imageDataUrl,
+    const response = await fetchWithRetry(
+      `${GEMINI_URL}?key=${GEMINI_API_KEY}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          contents: [
+            {
+              role: "user",
+              parts: [
+                { text: prompt },
+                {
+                  inlineData: {
+                    mimeType: imageFile.type,
+                    data: base64Image,
+                  },
                 },
-              },
-            ],
-          },
-        ],
-      }),
-    });
+              ],
+            },
+          ],
+        }),
+      }
+    );
 
     if (!response.ok) {
       const errorData = await response.json();
-      console.error("OpenRouter error:", errorData);
+      console.error("[SCAN] Gemini error:", errorData);
+
+      // Check if it's a rate limit or quota issue
+      if (response.status === 429 || response.status === 503) {
+        return NextResponse.json(
+          {
+            error: "AI is currently busy",
+            details: "Google's AI service is experiencing high demand. Please try again in a moment.",
+            retryable: true,
+          },
+          { status: 503 }
+        );
+      }
+
       return NextResponse.json(
         { error: "AI service error", details: errorData },
         { status: 500 }
@@ -113,7 +157,7 @@ export async function POST(request: NextRequest) {
     }
 
     const data = await response.json();
-    const text = data.choices?.[0]?.message?.content || "";
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
 
     // Extract JSON from response
     let ingredients;

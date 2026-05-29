@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || "";
-const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-const MODEL = "google/gemini-2.0-flash-001";
+const GROQ_API_KEY = process.env.GROQ_API_KEY || "";
+const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
+const MODEL = "llama-3.3-70b-versatile";
 
 export async function POST(request: NextRequest) {
   try {
-    if (!OPENROUTER_API_KEY) {
+    if (!GROQ_API_KEY) {
       return NextResponse.json(
-        { error: "OpenRouter API key is not configured" },
+        { error: "Groq API key is not configured" },
         { status: 500 }
       );
     }
@@ -60,10 +60,10 @@ export async function POST(request: NextRequest) {
       - Return ONLY the JSON, no markdown, no explanations
     `;
 
-    const response = await fetch(OPENROUTER_URL, {
+    const response = await fetch(GROQ_URL, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+        Authorization: `Bearer ${GROQ_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
 
     if (!response.ok) {
       const errorData = await response.json();
-      console.error("OpenRouter error:", errorData);
+      console.error("Groq error:", errorData);
       return NextResponse.json(
         { error: "AI service error", details: errorData },
         { status: 500 }
