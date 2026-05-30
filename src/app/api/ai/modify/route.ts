@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase-server";
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY || "";
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
@@ -6,6 +7,16 @@ const MODEL = "llama-3.3-70b-versatile";
 
 export async function POST(request: NextRequest) {
   try {
+    // Require authentication
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json(
+        { error: "Authentication required" },
+        { status: 401 }
+      );
+    }
+
     if (!GROQ_API_KEY) {
       return NextResponse.json(
         { error: "Groq API key is not configured" },

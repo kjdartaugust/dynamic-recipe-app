@@ -132,18 +132,20 @@ export default async function RecipePage({ params }: RecipePageProps) {
         </div>
       </div>
 
-      {/* AI Recipe Modifier */}
-      <div className="p-5 bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl border border-orange-100">
-        <RecipeModifier
-          recipe={{
-            id: recipe.id,
-            title: recipe.title,
-            description: recipe.description,
-            instructions: recipe.instructions,
-            ingredients: recipe.ingredients || [],
-          }}
-        />
-      </div>
+      {/* AI Recipe Modifier - only for authenticated users */}
+      {user && (
+        <div className="p-5 bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl border border-orange-100">
+          <RecipeModifier
+            recipe={{
+              id: recipe.id,
+              title: recipe.title,
+              description: recipe.description,
+              instructions: recipe.instructions,
+              ingredients: recipe.ingredients || [],
+            }}
+          />
+        </div>
+      )}
 
       {/* Macros */}
       {Object.keys(macros).length > 0 && (
