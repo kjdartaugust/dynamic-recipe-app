@@ -80,7 +80,7 @@ export default function HomePage() {
             Join thousands of home cooks saving money and the planet — one recipe at a time.
           </p>
           <Link
-            href="/register"
+            href="/fridge"
             className="inline-flex items-center gap-2 px-8 py-4 btn-gradient text-white rounded-xl font-semibold"
           >
             Start Cooking Free
