@@ -9,8 +9,7 @@ import { RecipeRatings } from "@/components/recipe-ratings";
 import { VisibilityToggle } from "@/components/visibility-toggle";
 import { RecipeInstructions } from "@/components/recipe-instructions";
 import { RecipeCacheWrapper } from "@/components/recipe-cache-wrapper";
-import { ArrowLeft, Clock, Dumbbell, Wheat as WheatIcon, Droplets, Tag as TagIcon, Star } from "lucide-react";
-import { RecipeImage } from "@/components/recipe-image";
+import { ArrowLeft, Clock, Flame, Dumbbell, Wheat as WheatIcon, Droplets, Tag as TagIcon, Star } from "lucide-react";
 import { RecipeImage } from "@/components/recipe-image";
 import { AddToCollectionButton } from "@/components/add-to-collection";
 
@@ -109,7 +108,6 @@ export default async function RecipePage({ params }: RecipePageProps) {
             alt={recipe.title}
             className="h-full"
           />
-          </div>
         </div>
 
         {recipe.description && (
