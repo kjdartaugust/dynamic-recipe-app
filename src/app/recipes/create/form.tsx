@@ -177,7 +177,7 @@ export default function CreateRecipeForm({ userId }: { userId: string }) {
         {/* Image Upload */}
         <div className="p-6 bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl border border-orange-100 space-y-4">
           <h2 className="text-xl font-semibold text-foreground">Recipe Photo</h2>
-          <ImageUpload onImageUploaded={setImageUrl} />
+          <ImageUpload onImageUploaded={setImageUrl} currentImage={imageUrl} />
         </div>
 
         {/* Basic Info */}
