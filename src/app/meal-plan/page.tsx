@@ -471,8 +471,10 @@ export default function MealPlannerPage() {
                       const recipe = getRecipeById(recipeId);
 
                       return (
-                        <button
+                        <div
                           key={`${day}-${mealType}`}
+                          role="button"
+                          tabIndex={0}
                           onDragOver={handleDragOver}
                           onDrop={() => handleDrop(day, mealType)}
                           onClick={() => {
@@ -485,6 +487,20 @@ export default function MealPlannerPage() {
                                 },
                               }));
                               setSelectedRecipe(null);
+                            }
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              if (selectedRecipe) {
+                                setMeals((prev) => ({
+                                  ...prev,
+                                  [day]: {
+                                    ...(prev[day] || {}),
+                                    [mealType]: selectedRecipe,
+                                  },
+                                }));
+                                setSelectedRecipe(null);
+                              }
                             }
                           }}
                           className={cn(
@@ -529,7 +545,7 @@ export default function MealPlannerPage() {
                               {selectedRecipe ? "Click to assign" : "Drop recipe"}
                             </div>
                           )}
-                        </button>
+                        </div>
                       );
                     })}
                   </div>
