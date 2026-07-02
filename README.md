@@ -1,5 +1,5 @@
 # Dynamic Recipe App
-
+#change the name to life saver
 An AI-powered recipe management application built with Next.js, Supabase, and OpenRouter. Scan ingredients with AI, modify recipes naturally, and cook hands-free with voice control.
 
 ## Features
