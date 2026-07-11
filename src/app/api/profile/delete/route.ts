@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
+import { createAdminClient, isAdminClientConfigured } from "@/lib/supabase-admin";
 
 export async function POST(request: NextRequest) {
   try {
@@ -8,6 +9,15 @@ export async function POST(request: NextRequest) {
 
     if (userError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // auth.admin.deleteUser requires service_role — on the anon key it fails
+    // with not_admin, which is why account deletion never actually worked.
+    if (!isAdminClientConfigured()) {
+      return NextResponse.json(
+        { error: "Account deletion is not configured" },
+        { status: 503 }
+      );
     }
 
     const body = await request.json();
@@ -64,8 +74,10 @@ export async function POST(request: NextRequest) {
       console.error("[DELETE] Error deleting shopping list:", shoppingError);
     }
 
-    // Delete the auth user
-    const { error: deleteError } = await supabase.auth.admin.deleteUser(user.id);
+    // Delete the auth user. Cascades to profiles/recipes/etc. via the
+    // ON DELETE CASCADE FKs back to auth.users.
+    const admin = createAdminClient();
+    const { error: deleteError } = await admin.auth.admin.deleteUser(user.id);
 
     if (deleteError) {
       console.error("[DELETE] Error deleting user:", deleteError);

@@ -19,6 +19,7 @@ import {
   ShoppingCart,
   ChevronDown,
   Folder,
+  ShieldCheck,
 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
@@ -29,7 +30,21 @@ export function Navigation() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [expiringCount, setExpiringCount] = useState(0);
+  const [isAdmin, setIsAdmin] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
+
+  // Only controls whether the link is rendered. /admin and every /api/admin/*
+  // route re-check is_admin server-side, so hiding it here is cosmetic.
+  useEffect(() => {
+    if (!user) {
+      setIsAdmin(false);
+      return;
+    }
+    fetch("/api/profile")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setIsAdmin(!!d?.profile?.is_admin))
+      .catch(() => setIsAdmin(false));
+  }, [user]);
 
   const fetchExpiringCount = () => {
     if (!user) return;
@@ -174,6 +189,16 @@ export function Navigation() {
                       <ShoppingCart className="h-4 w-4" />
                       Shopping List
                     </Link>
+                    {isAdmin && (
+                      <Link
+                        href="/admin"
+                        onClick={() => setUserMenuOpen(false)}
+                        className="flex items-center gap-2 px-4 py-2 text-sm text-muted-foreground hover:bg-orange-50 hover:text-orange-600 transition-colors"
+                      >
+                        <ShieldCheck className="h-4 w-4" />
+                        Admin
+                      </Link>
+                    )}
                     <div className="border-t border-orange-100 mt-1 pt-1">
                       <button
                         onClick={() => {
@@ -274,6 +299,16 @@ export function Navigation() {
                       <ShoppingCart className="h-4 w-4" />
                       Shopping List
                     </Link>
+                    {isAdmin && (
+                      <Link
+                        href="/admin"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:bg-orange-50 hover:text-orange-600 transition-colors"
+                      >
+                        <ShieldCheck className="h-4 w-4" />
+                        Admin
+                      </Link>
+                    )}
                     <button
                       onClick={() => {
                         handleSignOut();

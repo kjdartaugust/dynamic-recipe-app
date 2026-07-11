@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase-server";
+import { createAdminClient, isAdminClientConfigured } from "@/lib/supabase-admin";
+import { isCronAuthorized } from "@/lib/cron-auth";
 import { webpush, isPushConfigured } from "@/lib/web-push";
 
 function getDaysUntilExpiry(expiryDate: string): number {
@@ -10,33 +11,37 @@ function getDaysUntilExpiry(expiryDate: string): number {
   return Math.ceil((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 }
 
-export async function POST(req: NextRequest) {
+// Vercel Cron sends a GET with `Authorization: Bearer $CRON_SECRET`.
+export async function GET(req: NextRequest) {
+  if (!isCronAuthorized(req)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   if (!isPushConfigured()) {
     return NextResponse.json({ error: "Push not configured" }, { status: 503 });
   }
 
-  const secret = req.headers.get("x-cron-secret");
-  if (secret !== process.env.CRON_SECRET) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!isAdminClientConfigured()) {
+    return NextResponse.json(
+      { error: "SUPABASE_SERVICE_ROLE_KEY not configured" },
+      { status: 503 }
+    );
   }
 
-  try {
-    const supabase = await createClient();
+  // Service role: with no logged-in user, RLS on fridge_items and
+  // push_subscriptions (`user_id = auth.uid()`) matches zero rows.
+  const supabase = createAdminClient();
+  const results: Array<{ user: string; status: string }> = [];
 
-    // Get all users with push notifications enabled
+  try {
     const { data: profiles, error: profileError } = await supabase
       .from("profiles")
-      .select("id, push_notifications, notify_before_days")
+      .select("id, notify_before_days")
       .eq("push_notifications", true);
 
-    if (profileError || !profiles?.length) {
-      return NextResponse.json({ sent: 0, error: profileError?.message || "No users" });
-    }
+    if (profileError) throw profileError;
 
-    const results = [];
-
-    for (const profile of profiles) {
-      // Get expiring items for this user
+    for (const profile of profiles ?? []) {
       const today = new Date().toISOString().split("T")[0];
       const notifyBefore = profile.notify_before_days || 3;
       const cutoff = new Date();
@@ -53,7 +58,6 @@ export async function POST(req: NextRequest) {
 
       if (!items?.length) continue;
 
-      // Get push subscriptions for this user
       const { data: subscriptions } = await supabase
         .from("push_subscriptions")
         .select("endpoint, p256dh, auth")
@@ -77,9 +81,7 @@ export async function POST(req: NextRequest) {
           { action: "open-fridge", title: "View Fridge" },
           { action: "dismiss", title: "Dismiss" },
         ],
-        data: {
-          url: "/fridge",
-        },
+        data: { url: "/fridge" },
       });
 
       for (const sub of subscriptions) {
@@ -87,34 +89,51 @@ export async function POST(req: NextRequest) {
           await webpush.sendNotification(
             {
               endpoint: sub.endpoint,
-              keys: {
-                p256dh: sub.p256dh,
-                auth: sub.auth,
-              },
+              keys: { p256dh: sub.p256dh, auth: sub.auth },
             },
             payload
           );
-          results.push({ user: profile.id, endpoint: sub.endpoint.slice(0, 50), status: "sent" });
-        } catch (err: any) {
-          // If the subscription is invalid, remove it
-          if (err.statusCode === 410 || err.statusCode === 404) {
-            await supabase.from("push_subscriptions").delete().eq("endpoint", sub.endpoint);
-            results.push({ user: profile.id, endpoint: sub.endpoint.slice(0, 50), status: "removed" });
+          results.push({ user: profile.id, status: "sent" });
+        } catch (err) {
+          // 404/410 means the browser dropped the subscription — prune it.
+          const statusCode =
+            typeof err === "object" && err !== null && "statusCode" in err
+              ? (err as { statusCode?: number }).statusCode
+              : undefined;
+
+          if (statusCode === 410 || statusCode === 404) {
+            await supabase
+              .from("push_subscriptions")
+              .delete()
+              .eq("endpoint", sub.endpoint);
+            results.push({ user: profile.id, status: "removed" });
           } else {
-            results.push({ user: profile.id, endpoint: sub.endpoint.slice(0, 50), status: "error", error: err.message });
+            results.push({ user: profile.id, status: "error" });
           }
         }
       }
     }
 
-    return NextResponse.json({
-      sent: results.filter((r) => r.status === "sent").length,
-      removed: results.filter((r) => r.status === "removed").length,
-      total: results.length,
-      results,
+    const sent = results.filter((r) => r.status === "sent").length;
+    const removed = results.filter((r) => r.status === "removed").length;
+    const failed = results.filter((r) => r.status === "error").length;
+
+    await supabase.from("cron_runs").insert({
+      job: "notifications/push",
+      ok: failed === 0,
+      sent,
+      detail: `${sent} sent, ${removed} stale subscriptions pruned, ${failed} failed`,
     });
-  } catch (error: any) {
+
+    return NextResponse.json({ sent, removed, total: results.length });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
     console.error("[NOTIFY PUSH] Error:", error);
+
+    await supabase
+      .from("cron_runs")
+      .insert({ job: "notifications/push", ok: false, sent: 0, detail: message });
+
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }

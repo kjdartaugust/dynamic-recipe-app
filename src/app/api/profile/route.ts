@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 
+// Explicit column list: migration 013 replaced the blanket GRANT on profiles
+// with column-level grants (email is not selectable, is_admin is not writable
+// by the authenticated role), so `select("*")` now fails with a permission
+// error. The caller's own email is returned from auth.getUser() below.
+const PROFILE_COLUMNS =
+  "id, username, avatar_url, created_at, updated_at, email_notifications, push_notifications, notify_before_days, is_admin";
+
 export async function GET() {
   try {
     const supabase = await createClient();
@@ -12,7 +19,7 @@ export async function GET() {
 
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
-      .select("*")
+      .select(PROFILE_COLUMNS)
       .eq("id", user.id)
       .single();
 
@@ -53,15 +60,12 @@ export async function PATCH(request: NextRequest) {
     if (email_notifications !== undefined) updates.email_notifications = email_notifications;
     if (push_notifications !== undefined) updates.push_notifications = push_notifications;
     if (notify_before_days !== undefined) updates.notify_before_days = notify_before_days;
-    if (email_notifications !== undefined) updates.email_notifications = email_notifications;
-    if (push_notifications !== undefined) updates.push_notifications = push_notifications;
-    if (notify_before_days !== undefined) updates.notify_before_days = notify_before_days;
 
     const { data: profile, error } = await supabase
       .from("profiles")
       .update(updates)
       .eq("id", user.id)
-      .select()
+      .select(PROFILE_COLUMNS)
       .single();
 
     if (error) {
