@@ -15,15 +15,7 @@ export async function GET() {
   const headCount = (table: string) =>
     supabase.from(table).select("id", { count: "exact", head: true });
 
-  const [
-    users,
-    newUsers,
-    recipes,
-    publicRecipes,
-    fridgeItems,
-    ratings,
-    collections,
-  ] = await Promise.all([
+  const results = await Promise.all([
     headCount("profiles"),
     headCount("profiles").gte("created_at", sinceStr),
     headCount("recipes"),
@@ -33,17 +25,26 @@ export async function GET() {
     headCount("collections"),
   ]);
 
-  const total = recipes.count ?? 0;
-  const shared = publicRecipes.count ?? 0;
+  // Surface failures rather than coercing them to 0 — otherwise a missing
+  // migration or a database outage renders as a dashboard full of zeroes,
+  // which is indistinguishable from a legitimately empty app.
+  const failed = results.find((r) => r.error);
+  if (failed) {
+    console.error("[ADMIN METRICS] Count query failed:", failed.error);
+    return NextResponse.json({ error: "Failed to load metrics" }, { status: 500 });
+  }
+
+  const [users, newUsers, recipes, publicRecipes, fridgeItems, ratings, collections] =
+    results.map((r) => r.count ?? 0);
 
   return NextResponse.json({
-    users: users.count ?? 0,
-    newUsersLast30Days: newUsers.count ?? 0,
-    recipes: total,
-    publicRecipes: shared,
-    privateRecipes: total - shared,
-    fridgeItems: fridgeItems.count ?? 0,
-    ratings: ratings.count ?? 0,
-    collections: collections.count ?? 0,
+    users,
+    newUsersLast30Days: newUsers,
+    recipes,
+    publicRecipes,
+    privateRecipes: recipes - publicRecipes,
+    fridgeItems,
+    ratings,
+    collections,
   });
 }

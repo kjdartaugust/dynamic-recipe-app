@@ -26,11 +26,21 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Failed to load users" }, { status: 500 });
   }
 
-  // Recipe count per user, in one query rather than N.
-  const { data: recipeRows } = await supabase.from("recipes").select("user_id");
+  // Recipe count per user, scoped to just the users we're about to display.
+  // Selecting every recipe row in the table to count at most 100 users would
+  // grow unboundedly in latency and egress.
+  const ids = (profiles ?? []).map((p) => p.id);
   const recipeCounts = new Map<string, number>();
-  for (const row of recipeRows ?? []) {
-    recipeCounts.set(row.user_id, (recipeCounts.get(row.user_id) ?? 0) + 1);
+
+  if (ids.length) {
+    const { data: recipeRows } = await supabase
+      .from("recipes")
+      .select("user_id")
+      .in("user_id", ids);
+
+    for (const row of recipeRows ?? []) {
+      recipeCounts.set(row.user_id, (recipeCounts.get(row.user_id) ?? 0) + 1);
+    }
   }
 
   return NextResponse.json({

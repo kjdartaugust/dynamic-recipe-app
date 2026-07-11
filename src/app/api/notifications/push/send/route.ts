@@ -48,7 +48,9 @@ export async function GET(req: NextRequest) {
       cutoff.setDate(cutoff.getDate() + notifyBefore);
       const cutoffStr = cutoff.toISOString().split("T")[0];
 
-      const { data: items } = await supabase
+      // A failed query must not be mistaken for "this user has nothing
+      // expiring" — that would let a database outage record as a clean run.
+      const { data: items, error: itemsError } = await supabase
         .from("fridge_items")
         .select("name, expiry_date")
         .eq("user_id", profile.id)
@@ -56,13 +58,21 @@ export async function GET(req: NextRequest) {
         .gte("expiry_date", today)
         .order("expiry_date", { ascending: true });
 
+      if (itemsError) {
+        results.push({ user: profile.id, status: "error" });
+        continue;
+      }
       if (!items?.length) continue;
 
-      const { data: subscriptions } = await supabase
+      const { data: subscriptions, error: subsError } = await supabase
         .from("push_subscriptions")
         .select("endpoint, p256dh, auth")
         .eq("user_id", profile.id);
 
+      if (subsError) {
+        results.push({ user: profile.id, status: "error" });
+        continue;
+      }
       if (!subscriptions?.length) continue;
 
       const itemList = items.map((item) => {

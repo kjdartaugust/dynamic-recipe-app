@@ -46,29 +46,41 @@ export async function GET(request: NextRequest) {
 
 // Take a recipe down from /explore. Unpublishes rather than deletes, so the
 // author keeps their content.
+//
+// Takedown-only by construction: is_public is hardcoded to false rather than
+// taken from the request. An admin must not be able to *publish* someone's
+// private recipe, and an `is_public` flag in the body would allow exactly
+// that. The `.eq("is_public", true)` guard also means this can only ever act
+// on something already public.
 export async function PATCH(request: NextRequest) {
   const gate = await requireAdmin();
   if (!gate.ok) return gate.response;
 
   const body = await request.json();
-  const { id, is_public } = body;
+  const { id } = body;
 
-  if (!id || typeof is_public !== "boolean") {
-    return NextResponse.json(
-      { error: "id and is_public are required" },
-      { status: 400 }
-    );
+  if (!id || typeof id !== "string") {
+    return NextResponse.json({ error: "id is required" }, { status: 400 });
   }
 
   const supabase = createAdminClient();
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("recipes")
-    .update({ is_public })
-    .eq("id", id);
+    .update({ is_public: false })
+    .eq("id", id)
+    .eq("is_public", true)
+    .select("id");
 
   if (error) {
-    console.error("[ADMIN RECIPES] Update failed:", error);
-    return NextResponse.json({ error: "Failed to update recipe" }, { status: 500 });
+    console.error("[ADMIN RECIPES] Unpublish failed:", error);
+    return NextResponse.json({ error: "Failed to unpublish recipe" }, { status: 500 });
+  }
+
+  if (!data?.length) {
+    return NextResponse.json(
+      { error: "Recipe not found or already private" },
+      { status: 404 }
+    );
   }
 
   return NextResponse.json({ success: true });

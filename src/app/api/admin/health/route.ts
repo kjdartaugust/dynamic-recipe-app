@@ -37,11 +37,22 @@ export async function GET() {
   };
 
   const supabase = createAdminClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("cron_runs")
     .select("job, ran_at, ok, sent, detail")
     .order("ran_at", { ascending: false })
     .limit(20);
+
+  // Don't swallow this: if the query fails (e.g. migration 013 was never
+  // run), reporting "never run" would look identical to a healthy app whose
+  // crons simply haven't fired yet.
+  if (error) {
+    console.error("[ADMIN HEALTH] cron_runs query failed:", error);
+    return NextResponse.json(
+      { error: "Failed to read cron history — has migration 013 been run?" },
+      { status: 500 }
+    );
+  }
 
   const runs: CronRun[] = data ?? [];
 

@@ -43,39 +43,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Delete user data from profiles table first
-    const { error: profileError } = await supabase
-      .from("profiles")
-      .delete()
-      .eq("id", user.id);
-
-    if (profileError) {
-      console.error("[DELETE] Error deleting profile:", profileError);
-      // Continue anyway - try to delete auth user
-    }
-
-    // Delete user's recipes (cascade will handle ingredients, favorites, etc.)
-    const { error: recipesError } = await supabase
-      .from("recipes")
-      .delete()
-      .eq("user_id", user.id);
-
-    if (recipesError) {
-      console.error("[DELETE] Error deleting recipes:", recipesError);
-    }
-
-    // Delete user's shopping list
-    const { error: shoppingError } = await supabase
-      .from("shopping_lists")
-      .delete()
-      .eq("user_id", user.id);
-
-    if (shoppingError) {
-      console.error("[DELETE] Error deleting shopping list:", shoppingError);
-    }
-
-    // Delete the auth user. Cascades to profiles/recipes/etc. via the
-    // ON DELETE CASCADE FKs back to auth.users.
+    // Delete the auth user and let Postgres cascade do the rest.
+    //
+    // This used to hand-delete profiles/recipes/shopping_lists first, merely
+    // logging any failures, and only then delete the auth user. If that last
+    // call failed the account was left in a partially destroyed state: still
+    // able to sign in, but with its content already irreversibly gone.
+    //
+    // Every user-owned table is ON DELETE CASCADE back to auth.users (either
+    // directly, or via profiles.id), so one statement removes everything
+    // atomically — and if it fails, nothing is destroyed.
     const admin = createAdminClient();
     const { error: deleteError } = await admin.auth.admin.deleteUser(user.id);
 

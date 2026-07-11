@@ -155,8 +155,8 @@ function UsersTab() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
-  const load = useCallback(async (q: string) => {
-    const res = await fetch(`/api/admin/users?q=${encodeURIComponent(q)}`);
+  const load = useCallback(async (q: string, signal: AbortSignal) => {
+    const res = await fetch(`/api/admin/users?q=${encodeURIComponent(q)}`, { signal });
     if (!res.ok) {
       setError("Failed to load users");
       return;
@@ -165,9 +165,19 @@ function UsersTab() {
     setUsers(data.users);
   }, []);
 
+  // Abort the in-flight request when the query changes, so a slow response
+  // for an old query can't land after — and overwrite — a newer one.
   useEffect(() => {
-    const t = setTimeout(() => load(query), 250);
-    return () => clearTimeout(t);
+    const controller = new AbortController();
+    const t = setTimeout(() => {
+      load(query, controller.signal).catch((e: Error) => {
+        if (e.name !== "AbortError") setError("Failed to load users");
+      });
+    }, 250);
+    return () => {
+      clearTimeout(t);
+      controller.abort();
+    };
   }, [query, load]);
 
   const remove = async (u: AdminUserRow) => {
@@ -254,8 +264,8 @@ function RecipesTab() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
-  const load = useCallback(async (q: string) => {
-    const res = await fetch(`/api/admin/recipes?q=${encodeURIComponent(q)}`);
+  const load = useCallback(async (q: string, signal: AbortSignal) => {
+    const res = await fetch(`/api/admin/recipes?q=${encodeURIComponent(q)}`, { signal });
     if (!res.ok) {
       setError("Failed to load recipes");
       return;
@@ -264,17 +274,28 @@ function RecipesTab() {
     setRecipes(data.recipes);
   }, []);
 
+  // See UsersTab: abort in-flight requests so stale results can't overwrite
+  // newer ones.
   useEffect(() => {
-    const t = setTimeout(() => load(query), 250);
-    return () => clearTimeout(t);
+    const controller = new AbortController();
+    const t = setTimeout(() => {
+      load(query, controller.signal).catch((e: Error) => {
+        if (e.name !== "AbortError") setError("Failed to load recipes");
+      });
+    }, 250);
+    return () => {
+      clearTimeout(t);
+      controller.abort();
+    };
   }, [query, load]);
 
   const unpublish = async (r: AdminRecipeRow) => {
     setBusy(r.id);
+    // The endpoint is takedown-only; it does not accept an is_public flag.
     const res = await fetch("/api/admin/recipes", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: r.id, is_public: false }),
+      body: JSON.stringify({ id: r.id }),
     });
     setBusy(null);
 
