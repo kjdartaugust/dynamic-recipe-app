@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase-server";
+import { createAdminClient, isAdminClientConfigured } from "@/lib/supabase-admin";
+import { isCronAuthorized } from "@/lib/cron-auth";
 import { resend, isEmailConfigured } from "@/lib/resend";
+import { getSiteUrl } from "@/lib/site-url";
 
 function getDaysUntilExpiry(expiryDate: string): number {
   const today = new Date();
@@ -10,44 +12,53 @@ function getDaysUntilExpiry(expiryDate: string): number {
   return Math.ceil((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 }
 
-export async function POST(req: NextRequest) {
+// Vercel Cron sends a GET with `Authorization: Bearer $CRON_SECRET`.
+export async function GET(req: NextRequest) {
+  if (!isCronAuthorized(req)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   if (!isEmailConfigured()) {
     return NextResponse.json({ error: "Email not configured" }, { status: 503 });
   }
 
-  const secret = req.headers.get("x-cron-secret");
-  if (secret !== process.env.CRON_SECRET) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!isAdminClientConfigured()) {
+    return NextResponse.json(
+      { error: "SUPABASE_SERVICE_ROLE_KEY not configured" },
+      { status: 503 }
+    );
   }
 
-  try {
-    const supabase = await createClient();
+  // Service role: this job has no logged-in user, so under the anon key RLS
+  // (`user_id = auth.uid()`) would match zero fridge_items for everyone.
+  const supabase = createAdminClient();
+  const siteUrl = getSiteUrl();
+  const results: Array<{ user: string; items: number; status: string; error?: string }> = [];
 
-    // Get all users with email notifications enabled
+  try {
     const { data: profiles, error: profileError } = await supabase
       .from("profiles")
-      .select("id, username, email_notifications, notify_before_days")
+      .select("id, username, email, notify_before_days")
       .eq("email_notifications", true);
 
-    if (profileError || !profiles?.length) {
-      return NextResponse.json({ sent: 0, error: profileError?.message || "No users" });
-    }
+    if (profileError) throw profileError;
 
-    const results = [];
-
-    for (const profile of profiles) {
-      const { data: userData } = await supabase.auth.admin.getUserById(profile.id);
-      const email = userData?.user?.email;
+    for (const profile of profiles ?? []) {
+      // email is denormalised onto profiles (migration 013) — the old
+      // auth.admin.getUserById() call per user was both an N+1 against the
+      // auth API and impossible on the anon key.
+      const email = profile.email;
       if (!email) continue;
 
-      // Get expiring items for this user
       const today = new Date().toISOString().split("T")[0];
       const notifyBefore = profile.notify_before_days || 3;
       const cutoff = new Date();
       cutoff.setDate(cutoff.getDate() + notifyBefore);
       const cutoffStr = cutoff.toISOString().split("T")[0];
 
-      const { data: items } = await supabase
+      // A failed query must not be mistaken for "this user has nothing
+      // expiring" — that would let a database outage record as a clean run.
+      const { data: items, error: itemsError } = await supabase
         .from("fridge_items")
         .select("name, expiry_date")
         .eq("user_id", profile.id)
@@ -55,6 +66,15 @@ export async function POST(req: NextRequest) {
         .gte("expiry_date", today)
         .order("expiry_date", { ascending: true });
 
+      if (itemsError) {
+        results.push({
+          user: email,
+          items: 0,
+          status: "error",
+          error: itemsError.message,
+        });
+        continue;
+      }
       if (!items?.length) continue;
 
       const itemList = items
@@ -79,7 +99,7 @@ ${itemList}
 Don't let them go to waste! Visit your Fridge to generate a rescue recipe.
 
 ZeroWaste Chef
-https://your-app-url.com/fridge
+${siteUrl}/fridge
 `,
           html: `
 <!DOCTYPE html>
@@ -108,7 +128,7 @@ https://your-app-url.com/fridge
           .join("")}
       </div>
       <div style="text-align: center; margin-bottom: 24px;">
-        <a href="https://your-app-url.com/fridge" style="display: inline-block; background: linear-gradient(135deg, #ea580c, #dc2626); color: white; text-decoration: none; padding: 14px 32px; border-radius: 12px; font-weight: 600; font-size: 16px;">View My Fridge →</a>
+        <a href="${siteUrl}/fridge" style="display: inline-block; background: linear-gradient(135deg, #ea580c, #dc2626); color: white; text-decoration: none; padding: 14px 32px; border-radius: 12px; font-weight: 600; font-size: 16px;">View My Fridge →</a>
       </div>
       <p style="color: #9ca3af; font-size: 14px; text-align: center; margin: 0;">
         You're receiving this because you enabled email notifications in ZeroWaste Chef.
@@ -120,18 +140,35 @@ https://your-app-url.com/fridge
           `,
         });
         results.push({ user: email, items: items.length, status: "sent" });
-      } catch (err: any) {
-        results.push({ user: email, items: items.length, status: "error", error: err.message });
+      } catch (err) {
+        results.push({
+          user: email,
+          items: items.length,
+          status: "error",
+          error: err instanceof Error ? err.message : "Unknown error",
+        });
       }
     }
 
-    return NextResponse.json({
-      sent: results.filter((r) => r.status === "sent").length,
-      total: results.length,
-      results,
+    const sent = results.filter((r) => r.status === "sent").length;
+    const failed = results.filter((r) => r.status === "error").length;
+
+    await supabase.from("cron_runs").insert({
+      job: "notifications/email",
+      ok: failed === 0,
+      sent,
+      detail: `${sent} sent, ${failed} failed, ${results.length} attempted`,
     });
-  } catch (error: any) {
+
+    return NextResponse.json({ sent, total: results.length, results });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
     console.error("[NOTIFY EMAIL] Error:", error);
+
+    await supabase
+      .from("cron_runs")
+      .insert({ job: "notifications/email", ok: false, sent: 0, detail: message });
+
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }

@@ -4,6 +4,12 @@ export interface Profile {
   avatar_url: string | null
   created_at: string
   updated_at: string
+  is_admin?: boolean
+  email_notifications?: boolean
+  push_notifications?: boolean
+  notify_before_days?: number
+  /** Only ever populated via the service-role client; not selectable by anon/authenticated. */
+  email?: string | null
 }
 
 export interface Category {

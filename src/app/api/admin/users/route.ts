@@ -1,0 +1,102 @@
+import { NextRequest, NextResponse } from "next/server";
+import { requireAdmin, requireServiceRole } from "@/lib/admin-auth";
+import { createAdminClient } from "@/lib/supabase-admin";
+
+export async function GET(request: NextRequest) {
+  const gate = await requireAdmin();
+  if (!gate.ok) return gate.response;
+
+  const missing = requireServiceRole();
+  if (missing) return missing;
+
+  const supabase = createAdminClient();
+  const search = request.nextUrl.searchParams.get("q")?.trim();
+
+  let query = supabase
+    .from("profiles")
+    .select("id, username, email, avatar_url, created_at, is_admin")
+    .order("created_at", { ascending: false })
+    .limit(100);
+
+  if (search) {
+    query = query.or(`username.ilike.%${search}%,email.ilike.%${search}%`);
+  }
+
+  const { data: profiles, error } = await query;
+
+  if (error) {
+    console.error("[ADMIN USERS] Error:", error);
+    return NextResponse.json(
+      { error: `Users query failed: ${error.message}` },
+      { status: 500 }
+    );
+  }
+
+  // Recipe count per user, scoped to just the users we're about to display.
+  // Selecting every recipe row in the table to count at most 100 users would
+  // grow unboundedly in latency and egress.
+  const ids = (profiles ?? []).map((p) => p.id);
+  const recipeCounts = new Map<string, number>();
+
+  if (ids.length) {
+    const { data: recipeRows } = await supabase
+      .from("recipes")
+      .select("user_id")
+      .in("user_id", ids);
+
+    for (const row of recipeRows ?? []) {
+      recipeCounts.set(row.user_id, (recipeCounts.get(row.user_id) ?? 0) + 1);
+    }
+  }
+
+  return NextResponse.json({
+    users: (profiles ?? []).map((p) => ({
+      ...p,
+      recipeCount: recipeCounts.get(p.id) ?? 0,
+    })),
+  });
+}
+
+export async function DELETE(request: NextRequest) {
+  const gate = await requireAdmin();
+  if (!gate.ok) return gate.response;
+
+  const id = request.nextUrl.searchParams.get("id");
+  if (!id) {
+    return NextResponse.json({ error: "User id is required" }, { status: 400 });
+  }
+
+  if (id === gate.user.id) {
+    return NextResponse.json(
+      { error: "You cannot delete your own admin account here" },
+      { status: 400 }
+    );
+  }
+
+  const supabase = createAdminClient();
+
+  // Refuse to delete other admins — demote them in SQL first. Stops one
+  // compromised admin session from wiping out the rest.
+  const { data: target } = await supabase
+    .from("profiles")
+    .select("is_admin")
+    .eq("id", id)
+    .single();
+
+  if (target?.is_admin) {
+    return NextResponse.json(
+      { error: "Cannot delete another admin. Revoke is_admin first." },
+      { status: 400 }
+    );
+  }
+
+  // Cascades to profiles/recipes/fridge_items/etc. via ON DELETE CASCADE.
+  const { error } = await supabase.auth.admin.deleteUser(id);
+
+  if (error) {
+    console.error("[ADMIN USERS] Delete failed:", error);
+    return NextResponse.json({ error: "Failed to delete user" }, { status: 500 });
+  }
+
+  return NextResponse.json({ success: true });
+}
