@@ -55,6 +55,7 @@ interface CronRun {
 interface Health {
   env: Record<string, boolean>;
   crons: Array<{ job: string; lastRun: CronRun | null }>;
+  degraded?: string;
 }
 
 type Tab = "metrics" | "users" | "recipes" | "health";
@@ -72,6 +73,18 @@ function formatDate(iso: string) {
     month: "short",
     day: "numeric",
   });
+}
+
+// Surface what the server actually said. A generic "Failed to load X" hides
+// the one thing that makes these errors actionable (a missing env var, an
+// unrun migration), which is exactly the wrong tradeoff on an admin console.
+async function readError(res: Response, fallback: string): Promise<string> {
+  try {
+    const body = await res.json();
+    return typeof body?.error === "string" ? body.error : fallback;
+  } catch {
+    return fallback;
+  }
 }
 
 export function AdminDashboard() {
@@ -117,10 +130,14 @@ function MetricsTab() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("/api/admin/metrics")
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error("Failed to load metrics"))))
-      .then(setMetrics)
-      .catch((e: Error) => setError(e.message));
+    (async () => {
+      const res = await fetch("/api/admin/metrics");
+      if (!res.ok) {
+        setError(await readError(res, "Failed to load metrics"));
+        return;
+      }
+      setMetrics(await res.json());
+    })().catch(() => setError("Failed to load metrics"));
   }, []);
 
   if (error) return <ErrorNote message={error} />;
@@ -158,10 +175,12 @@ function UsersTab() {
   const load = useCallback(async (q: string, signal: AbortSignal) => {
     const res = await fetch(`/api/admin/users?q=${encodeURIComponent(q)}`, { signal });
     if (!res.ok) {
-      setError("Failed to load users");
+      setError(await readError(res, "Failed to load users"));
+      setUsers([]);
       return;
     }
     const data = await res.json();
+    setError(null);
     setUsers(data.users);
   }, []);
 
@@ -267,10 +286,12 @@ function RecipesTab() {
   const load = useCallback(async (q: string, signal: AbortSignal) => {
     const res = await fetch(`/api/admin/recipes?q=${encodeURIComponent(q)}`, { signal });
     if (!res.ok) {
-      setError("Failed to load recipes");
+      setError(await readError(res, "Failed to load recipes"));
+      setRecipes([]);
       return;
     }
     const data = await res.json();
+    setError(null);
     setRecipes(data.recipes);
   }, []);
 
@@ -358,10 +379,14 @@ function HealthTab() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("/api/admin/health")
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error("Failed to load system health"))))
-      .then(setHealth)
-      .catch((e: Error) => setError(e.message));
+    (async () => {
+      const res = await fetch("/api/admin/health");
+      if (!res.ok) {
+        setError(await readError(res, "Failed to load system health"));
+        return;
+      }
+      setHealth(await res.json());
+    })().catch(() => setError("Failed to load system health"));
   }, []);
 
   if (error) return <ErrorNote message={error} />;
@@ -369,12 +394,23 @@ function HealthTab() {
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">
+      {health.degraded && (
+        <div className="lg:col-span-2">
+          <ErrorNote message={health.degraded} />
+        </div>
+      )}
+
       <div className="rounded-xl border border-orange-100 bg-white p-5">
         <h2 className="font-semibold mb-1">Scheduled jobs</h2>
         <p className="text-xs text-muted-foreground mb-4">
           Both run daily at 09:00 UTC via Vercel Cron.
         </p>
         <div className="space-y-3">
+          {health.crons.length === 0 && (
+            <p className="text-sm text-muted-foreground">
+              Cron history unavailable.
+            </p>
+          )}
           {health.crons.map((c) => (
             <div key={c.job} className="rounded-lg border border-orange-50 p-3">
               <div className="flex items-center justify-between">

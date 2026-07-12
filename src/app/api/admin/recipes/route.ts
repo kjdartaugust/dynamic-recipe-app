@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/admin-auth";
+import { requireAdmin, requireServiceRole } from "@/lib/admin-auth";
 import { createAdminClient } from "@/lib/supabase-admin";
 
 // Public recipes, newest first — the moderation queue for /explore.
 export async function GET(request: NextRequest) {
   const gate = await requireAdmin();
   if (!gate.ok) return gate.response;
+
+  const missing = requireServiceRole();
+  if (missing) return missing;
 
   const supabase = createAdminClient();
   const search = request.nextUrl.searchParams.get("q")?.trim();
@@ -25,7 +28,10 @@ export async function GET(request: NextRequest) {
 
   if (error) {
     console.error("[ADMIN RECIPES] Error:", error);
-    return NextResponse.json({ error: "Failed to load recipes" }, { status: 500 });
+    return NextResponse.json(
+      { error: `Recipes query failed: ${error.message}` },
+      { status: 500 }
+    );
   }
 
   const authorIds = [...new Set((recipes ?? []).map((r) => r.user_id))];
@@ -55,6 +61,9 @@ export async function GET(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   const gate = await requireAdmin();
   if (!gate.ok) return gate.response;
+
+  const missing = requireServiceRole();
+  if (missing) return missing;
 
   const body = await request.json();
   const { id } = body;

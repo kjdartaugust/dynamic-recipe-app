@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/admin-auth";
+import { requireAdmin, requireServiceRole } from "@/lib/admin-auth";
 import { createAdminClient } from "@/lib/supabase-admin";
 
 export async function GET() {
   const gate = await requireAdmin();
   if (!gate.ok) return gate.response;
+
+  const missing = requireServiceRole();
+  if (missing) return missing;
 
   const supabase = createAdminClient();
 
@@ -31,7 +34,10 @@ export async function GET() {
   const failed = results.find((r) => r.error);
   if (failed) {
     console.error("[ADMIN METRICS] Count query failed:", failed.error);
-    return NextResponse.json({ error: "Failed to load metrics" }, { status: 500 });
+    return NextResponse.json(
+      { error: `Metrics query failed: ${failed.error?.message}` },
+      { status: 500 }
+    );
   }
 
   const [users, newUsers, recipes, publicRecipes, fridgeItems, ratings, collections] =

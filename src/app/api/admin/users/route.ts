@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/admin-auth";
+import { requireAdmin, requireServiceRole } from "@/lib/admin-auth";
 import { createAdminClient } from "@/lib/supabase-admin";
 
 export async function GET(request: NextRequest) {
   const gate = await requireAdmin();
   if (!gate.ok) return gate.response;
+
+  const missing = requireServiceRole();
+  if (missing) return missing;
 
   const supabase = createAdminClient();
   const search = request.nextUrl.searchParams.get("q")?.trim();
@@ -23,7 +26,10 @@ export async function GET(request: NextRequest) {
 
   if (error) {
     console.error("[ADMIN USERS] Error:", error);
-    return NextResponse.json({ error: "Failed to load users" }, { status: 500 });
+    return NextResponse.json(
+      { error: `Users query failed: ${error.message}` },
+      { status: 500 }
+    );
   }
 
   // Recipe count per user, scoped to just the users we're about to display.

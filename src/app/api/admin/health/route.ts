@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-auth";
-import { createAdminClient } from "@/lib/supabase-admin";
+import { createAdminClient, isAdminClientConfigured } from "@/lib/supabase-admin";
 
 interface CronRun {
   job: string;
@@ -36,6 +36,22 @@ export async function GET() {
     siteUrl: !!process.env.NEXT_PUBLIC_SITE_URL,
   };
 
+  // This endpoint must keep working when the service-role key is missing —
+  // that is precisely the failure it exists to diagnose. So report `env`
+  // first and degrade the rest, rather than constructing the admin client
+  // up front and throwing before we can tell anyone what's wrong.
+  if (!isAdminClientConfigured()) {
+    return NextResponse.json({
+      env,
+      crons: [],
+      recentRuns: [],
+      degraded:
+        "SUPABASE_SERVICE_ROLE_KEY is not set for this environment. Add it in " +
+        "Vercel → Settings → Environment Variables (tick Preview as well as " +
+        "Production), then redeploy — env vars are baked in at build time.",
+    });
+  }
+
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from("cron_runs")
@@ -48,10 +64,12 @@ export async function GET() {
   // crons simply haven't fired yet.
   if (error) {
     console.error("[ADMIN HEALTH] cron_runs query failed:", error);
-    return NextResponse.json(
-      { error: "Failed to read cron history — has migration 013 been run?" },
-      { status: 500 }
-    );
+    return NextResponse.json({
+      env,
+      crons: [],
+      recentRuns: [],
+      degraded: `Could not read cron history: ${error.message}`,
+    });
   }
 
   const runs: CronRun[] = data ?? [];

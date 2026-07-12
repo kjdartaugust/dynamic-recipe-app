@@ -1,5 +1,21 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
+import { isAdminClientConfigured } from "@/lib/supabase-admin";
+
+export const SERVICE_ROLE_MISSING =
+  "SUPABASE_SERVICE_ROLE_KEY is not set for this environment. Add it in Vercel → " +
+  "Settings → Environment Variables (tick Preview as well as Production), then " +
+  "redeploy — env vars are baked in at build time.";
+
+/**
+ * Every admin route needs the service-role client. Without this check,
+ * createAdminClient() throws and the caller sees an opaque 500 with no hint
+ * that a single missing env var is the cause.
+ */
+export function requireServiceRole(): NextResponse | null {
+  if (isAdminClientConfigured()) return null;
+  return NextResponse.json({ error: SERVICE_ROLE_MISSING }, { status: 503 });
+}
 
 export interface AdminUser {
   id: string;
