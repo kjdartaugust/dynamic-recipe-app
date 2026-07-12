@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-auth";
-import { createAdminClient, isAdminClientConfigured } from "@/lib/supabase-admin";
+import {
+  createAdminClient,
+  isAdminClientConfigured,
+  detectServiceRoleKeyRole,
+} from "@/lib/supabase-admin";
 
 interface CronRun {
   job: string;
@@ -49,6 +53,20 @@ export async function GET() {
         "SUPABASE_SERVICE_ROLE_KEY is not set for this environment. Add it in " +
         "Vercel → Settings → Environment Variables (tick Preview as well as " +
         "Production), then redeploy — env vars are baked in at build time.",
+    });
+  }
+
+  const role = detectServiceRoleKeyRole();
+  if (role !== null && role !== "service_role") {
+    return NextResponse.json({
+      env,
+      crons: [],
+      recentRuns: [],
+      degraded:
+        `SUPABASE_SERVICE_ROLE_KEY holds a "${role}" key, not the service_role key. ` +
+        `That is why every tab reports "permission denied". In Supabase → Settings → ` +
+        `API, copy the key labelled service_role (secret, behind a Reveal button), ` +
+        `then redeploy.`,
     });
   }
 

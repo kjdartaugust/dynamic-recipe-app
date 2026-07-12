@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
-import { isAdminClientConfigured } from "@/lib/supabase-admin";
+import { isAdminClientConfigured, detectServiceRoleKeyRole } from "@/lib/supabase-admin";
 
 export const SERVICE_ROLE_MISSING =
   "SUPABASE_SERVICE_ROLE_KEY is not set for this environment. Add it in Vercel → " +
@@ -11,10 +11,33 @@ export const SERVICE_ROLE_MISSING =
  * Every admin route needs the service-role client. Without this check,
  * createAdminClient() throws and the caller sees an opaque 500 with no hint
  * that a single missing env var is the cause.
+ *
+ * The wrong-key case is nastier than the missing-key case: the anon key sits
+ * next to the service_role key in the Supabase dashboard and looks identical,
+ * and pasting it here yields `permission denied for table ...` on every query
+ * rather than anything that points at the key. So we check the role claim and
+ * name the problem.
  */
 export function requireServiceRole(): NextResponse | null {
-  if (isAdminClientConfigured()) return null;
-  return NextResponse.json({ error: SERVICE_ROLE_MISSING }, { status: 503 });
+  if (!isAdminClientConfigured()) {
+    return NextResponse.json({ error: SERVICE_ROLE_MISSING }, { status: 503 });
+  }
+
+  const role = detectServiceRoleKeyRole();
+  if (role !== null && role !== "service_role") {
+    return NextResponse.json(
+      {
+        error:
+          `SUPABASE_SERVICE_ROLE_KEY holds a "${role}" key, not the service_role key. ` +
+          `Every query will fail with "permission denied". In Supabase → Settings → API, ` +
+          `use the key labelled service_role (secret, behind a Reveal button) — not the ` +
+          `anon public key next to it.`,
+      },
+      { status: 503 }
+    );
+  }
+
+  return null;
 }
 
 export interface AdminUser {
