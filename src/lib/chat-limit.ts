@@ -19,6 +19,27 @@ export interface Quota {
   retryAfterSeconds: number;
   /** Set when the quota could not be evaluated at all (misconfig / outage). */
   unavailable?: boolean;
+  /** Row to refund if the request never produced an answer. */
+  usageId?: string;
+}
+
+/**
+ * Hand a message back after an upstream failure.
+ *
+ * The quota is spent *before* calling Groq — deliberately, so a caller can't
+ * mine free tokens by forcing errors. The cost is that a Groq outage would
+ * otherwise burn one of a guest's five trial messages for nothing, so we
+ * return it when we know no answer was produced.
+ */
+export async function refundChatQuota(usageId: string | undefined): Promise<void> {
+  if (!usageId || !isAdminClientConfigured()) return;
+  try {
+    await createAdminClient().from("chat_usage").delete().eq("id", usageId);
+  } catch (error) {
+    // A failed refund costs the user one message; it must never mask the
+    // upstream error that actually broke their request.
+    console.error("[CHAT] Quota refund failed:", error);
+  }
 }
 
 /**
@@ -105,12 +126,24 @@ export async function consumeChatQuota(
     };
   }
 
-  await supabase.from("chat_usage").insert({ identity });
+  const { data: inserted } = await supabase
+    .from("chat_usage")
+    .insert({ identity })
+    .select("id")
+    .single();
+
+  // Opportunistic prune. Rows are only ever read inside the window, so older
+  // ones are dead weight — without this the table grows forever.
+  if (Math.random() < 0.02) {
+    const cutoff = new Date(Date.now() - 48 * 3600_000).toISOString();
+    await supabase.from("chat_usage").delete().lt("created_at", cutoff);
+  }
 
   return {
     allowed: true,
     remaining: Math.max(0, limit - used - 1),
     limit,
     retryAfterSeconds: 0,
+    usageId: inserted?.id,
   };
 }

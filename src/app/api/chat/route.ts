@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
-import { consumeChatQuota } from "@/lib/chat-limit";
+import { consumeChatQuota, refundChatQuota } from "@/lib/chat-limit";
 
 // Bound the payload. Without these, a caller can post a megabyte of text and
 // bill us for the tokens — the cheapest possible abuse of an LLM endpoint.
@@ -13,8 +13,18 @@ interface ChatMessage {
   content: string;
 }
 
-function parseMessages(input: unknown): ChatMessage[] | null {
-  if (!Array.isArray(input)) return null;
+/**
+ * Reject *malformed* payloads; *trim* merely oversized ones.
+ *
+ * The distinction matters. A transcript only grows, so rejecting one for
+ * being too long would brick the conversation permanently: past ~24 turns
+ * every further message would 400 and the user could never recover. Size is
+ * bounded by dropping the oldest turns, which is what a chat window does
+ * anyway. Only structurally bad input — a forged `system` role, a non-string
+ * body — is an attack, and only that is refused.
+ */
+function sanitizeMessages(input: unknown): ChatMessage[] | null {
+  if (!Array.isArray(input) || input.length === 0) return null;
 
   const messages: ChatMessage[] = [];
   for (const raw of input) {
@@ -27,17 +37,22 @@ function parseMessages(input: unknown): ChatMessage[] | null {
     // turning this into a general-purpose LLM proxy.
     if (role !== "user" && role !== "assistant") return null;
     if (typeof content !== "string") return null;
-    if (content.length > MAX_CHARS_PER_MESSAGE) return null;
 
-    messages.push({ role, content });
+    // A single huge turn is capped rather than refused: pasting a long recipe
+    // in is legitimate, and we still bound the tokens we pay for.
+    messages.push({ role, content: content.slice(0, MAX_CHARS_PER_MESSAGE) });
   }
 
-  if (messages.length === 0 || messages.length > MAX_MESSAGES) return null;
+  // Keep the most recent turns — the tail carries the live conversation.
+  let trimmed = messages.slice(-MAX_MESSAGES);
 
-  const total = messages.reduce((n, m) => n + m.content.length, 0);
-  if (total > MAX_TOTAL_CHARS) return null;
+  let total = trimmed.reduce((n, m) => n + m.content.length, 0);
+  while (total > MAX_TOTAL_CHARS && trimmed.length > 1) {
+    total -= trimmed[0].content.length;
+    trimmed = trimmed.slice(1);
+  }
 
-  return messages;
+  return trimmed;
 }
 
 /** Fridge context, read from the database — never from the request body. */
@@ -86,7 +101,7 @@ export async function POST(request: NextRequest) {
     } = await supabase.auth.getUser();
 
     const body = await request.json();
-    const messages = parseMessages(body?.messages);
+    const messages = sanitizeMessages(body?.messages);
     if (!messages) {
       return NextResponse.json({ error: "Invalid messages payload" }, { status: 400 });
     }
@@ -166,9 +181,11 @@ Guidelines:
       }),
     });
 
+    // The user got no answer, so don't charge them for one.
     if (!response.ok) {
       const errorText = await response.text();
       console.error("[CHAT] Groq error:", response.status, errorText);
+      await refundChatQuota(quota.usageId);
       return NextResponse.json(
         { error: `AI service error: ${response.status}` },
         { status: 503 }
@@ -179,6 +196,7 @@ Guidelines:
     const reply = data.choices?.[0]?.message?.content;
 
     if (!reply) {
+      await refundChatQuota(quota.usageId);
       return NextResponse.json({ error: "No response content from AI" }, { status: 500 });
     }
 
